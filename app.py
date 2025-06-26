@@ -9,7 +9,7 @@ st.title("📖 Tukuza Yesu BibleBot")
 st.caption("✝️ Created by Sammy Maigwa Karuri — Powered by GPT-3.5")
 
 # ✅ Set your OpenAI API key here
-openai.api_key = openai.api_key = st.secrets["OPENAI_API_KEY"]
+openai.api_key = st.secrets["OPENAI_API_KEY"]
   # Replace with your real key
 
 # ✅ Input box
