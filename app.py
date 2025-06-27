@@ -1,5 +1,7 @@
 import streamlit as st
 import openai
+from openai import AuthenticationError
+
 
 # Use secret API key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
