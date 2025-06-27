@@ -1,68 +1,68 @@
 import streamlit as st
+import speech_recognition as sr
 from openai import OpenAI
+import os
 
-# Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
-)
-
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
+# 🔑 Ask user for their API key
+openai_api_key = st.text_input("🔐 Enter your OpenAI API key:", type="password")
 if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+    st.warning("🗝️ Please enter your API key to continue.")
+    st.stop()
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+# ✅ OpenAI client
+client = OpenAI(api_key=openai_api_key)
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
+st.title("📖 Tukuza Yesu BibleBot")
+st.caption("✝️ Ask questions by typing or uploading your voice.")
 
-    # Display the existing chat messages via `st.chat_message`.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+# 🧠 Chat memory
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
-        st.markdown("🎙️ **Optional: Upload a WAV file to ask by voice**")
-        uploaded_audio = st.file_uploader("Upload your question as a WAV file", type=["wav"])
+# 🔊 Voice transcription function
+def transcribe_audio(file_path):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(file_path) as source:
+        audio = recognizer.record(source)
+    try:
+        return recognizer.recognize_google(audio)
+    except sr.UnknownValueError:
+        return "Sorry, couldn't understand the audio."
+    except sr.RequestError:
+        return "Speech recognition service error."
 
-    if uploaded_audio is not None:
-       with open("temp_audio.wav", "wb") as f:
+# 📥 Voice input
+uploaded_audio = st.file_uploader("🎙️ Upload a WAV file to ask by voice", type=["wav"])
+question = None
+
+if uploaded_audio:
+    with open("temp.wav", "wb") as f:
         f.write(uploaded_audio.getbuffer())
-    st.audio("temp_audio.wav", format="audio/wav")
+    st.audio("temp.wav", format="audio/wav")
+    st.info("Transcribing audio...")
+    question = transcribe_audio("temp.wav")
+    st.success(f"📝 Transcribed: {question}")
 
-    st.info("Transcribing...")
-    transcript = transcribe_audio("temp_audio.wav")
-    st.success(f"📝 Transcribed: {transcript}")
-    question = transcript  # Replace manual input with voice
+# ⌨️ Text input
+if not question:
+    question = st.chat_input("Type your Bible question...")
 
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+# 🔄 Run chat if there’s a question
+if question:
+    st.session_state.messages.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.markdown(question)
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
+    stream = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": m["role"], "content": m["content"]}
+            for m in st.session_state.messages
+        ],
+        stream=True
+    )
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+    with st.chat_message("assistant"):
+        response = st.write_stream(stream)
+    st.session_state.messages.append({"role": "assistant", "content": response})
