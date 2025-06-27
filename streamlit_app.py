@@ -1,54 +1,64 @@
 import streamlit as st
+import openai
+from streamlit_webrtc import webrtc_streamer
 import speech_recognition as sr
-from openai import OpenAI
-import os
+import av
+import queue
 
-# 🔑 Ask user for their API key
-openai_api_key = st.text_input("🔐 Enter your OpenAI API key:", type="password")
+# 🔐 API key input
+openai_api_key = st.text_input("🔑 Enter your OpenAI API key:", type="password")
 if not openai_api_key:
-    st.warning("🗝️ Please enter your API key to continue.")
+    st.warning("Please enter your key to continue.")
     st.stop()
 
-# ✅ OpenAI client
-client = OpenAI(api_key=openai_api_key)
+client = openai.OpenAI(api_key=openai_api_key)
 
+# Set page config
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
 st.title("📖 Tukuza Yesu BibleBot")
-st.caption("✝️ Ask questions by typing or uploading your voice.")
+st.caption("🎙 Ask by speaking or typing your Bible question")
 
-# 🧠 Chat memory
+# Store chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 🔊 Voice transcription function
-def transcribe_audio(file_path):
+# 🧠 For audio recording
+audio_queue = queue.Queue()
+
+class AudioProcessor:
+    def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
+        audio = frame.to_ndarray().flatten().astype("float32").tobytes()
+        audio_queue.put(audio)
+        return frame
+
+# 🎤 Microphone streaming
+webrtc_ctx = webrtc_streamer(
+    key="speech",
+    mode="SENDONLY",
+    in_audio=True,
+    audio_processor_factory=AudioProcessor,
+    media_stream_constraints={"audio": True, "video": False},
+    async_processing=True,
+)
+
+def recognize_from_queue():
     recognizer = sr.Recognizer()
-    with sr.AudioFile(file_path) as source:
-        audio = recognizer.record(source)
-    try:
-        return recognizer.recognize_google(audio)
-    except sr.UnknownValueError:
-        return "Sorry, couldn't understand the audio."
-    except sr.RequestError:
-        return "Speech recognition service error."
+    with sr.Microphone() as source:
+        st.info("🎙 Listening... speak now!")
+        audio_data = sr.AudioData(b"".join(list(audio_queue.queue)), 16000, 2)
+        try:
+            return recognizer.recognize_google(audio_data)
+        except:
+            return "Sorry, I couldn't understand."
 
-# 📥 Voice input
-uploaded_audio = st.file_uploader("🎙️ Upload a WAV file to ask by voice", type=["wav"])
-question = None
+question = st.chat_input("Or type your Bible question here:")
 
-if uploaded_audio:
-    with open("temp.wav", "wb") as f:
-        f.write(uploaded_audio.getbuffer())
-    st.audio("temp.wav", format="audio/wav")
-    st.info("Transcribing audio...")
-    question = transcribe_audio("temp.wav")
+# 🎙 Button to process mic
+if st.button("📝 Transcribe Mic Input"):
+    question = recognize_from_queue()
     st.success(f"📝 Transcribed: {question}")
 
-# ⌨️ Text input
-if not question:
-    question = st.chat_input("Type your Bible question...")
-
-# 🔄 Run chat if there’s a question
+# 🧠 Chat logic
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
@@ -56,13 +66,11 @@ if question:
 
     stream = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": m["role"], "content": m["content"]}
-            for m in st.session_state.messages
-        ],
-        stream=True
+        messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+        stream=True,
     )
 
     with st.chat_message("assistant"):
-        response = st.write_stream(stream)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        reply = st.write_stream(stream)
+
+    st.session_state.messages.append({"role": "assistant", "content": reply})
