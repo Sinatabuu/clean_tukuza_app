@@ -10,7 +10,22 @@ import numpy as np
 import queue
 
 # Setup OpenAI key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+from openai import OpenAI
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+if question:
+    try:
+        with st.spinner("Answering..."):
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful Bible-based assistant."},
+                    {"role": "user", "content": question}
+                ]
+            )
+            st.success(response.choices[0].message.content)
+    except Exception as e:
+        st.error(f"💥 Unexpected error:\n\n{str(e)}")
 
 # 🎯 Function to fetch daily Bible verse
 def get_daily_verse():
