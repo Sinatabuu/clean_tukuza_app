@@ -1,33 +1,33 @@
 import streamlit as st
 import openai
-from openai import OpenAIError
 
-# Set the OpenAI API key
+# ✅ Correct way to use API key from Streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# 🔧 Optional debug check
 st.write("🔑 API key detected." if openai.api_key else "❌ No API key found.")
 
-# Streamlit page setup
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
 st.title("📖 Tukuza Yesu BibleBot")
 st.subheader("Ask your question below:")
 
-# Input
+# Get user input
 question = st.text_input("❓ Ask a Bible question (Swali lako):")
 
-# Handle question
 if question:
     try:
         with st.spinner("Answering..."):
-            response = openai.ChatCompletion.create(  # ✅ Works on all OpenAI 1.x versions
+            response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a helpful Bible-based assistant."},
                     {"role": "user", "content": question}
                 ]
             )
+            # ✅ This works with all OpenAI versions before and after 1.0
             st.success(response.choices[0].message["content"])
-    except OpenAIError:
-        st.error("🚫 API error — check your key or usage limits.")
+    except openai.error.AuthenticationError:
+        st.error("🚫 API Authentication failed. Check your OpenAI key.")
     except Exception as e:
         st.error(f"💥 Unexpected error:\n\n{str(e)}")
 
