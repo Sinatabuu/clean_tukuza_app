@@ -34,6 +34,8 @@ st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
 st.title("📖 Tukuza Yesu BibleBot")
 st.subheader("Ask your question below:")
 
+# ✅ Call daily verse display here
+st.info(get_daily_verse())
 question = st.text_input("❓ Ask a Bible question (Swali lako):")
 
 if question:
