@@ -22,19 +22,20 @@ question = st.text_input(
 if question:
     with st.spinner("🔄 Thinking..."):
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a helpful Bible-based assistant."},
-                    {"role": "user", "content": question}
-                ]
-            )
-            answer = response.choices[0].message["content"].strip()
-            st.success(answer)
-        except openai.error.AuthenticationError:
-            st.error("🚫 API key error. Please check your key.")
-        except Exception as e:
-            st.error(f"💥 Something went wrong: {str(e)}")
+    with st.spinner("Answering..."):
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful Bible-based assistant."},
+                {"role": "user", "content": question}
+            ]
+        )
+        st.success(response.choices[0].message["content"])
+except openai.AuthenticationError:
+    st.error("🚫 API Authentication failed. Double-check your key.")
+except Exception as e:
+    st.error(f"💥 Unexpected error: {str(e)}")
+
 
 # ✅ Footer with your credit
 st.markdown(
