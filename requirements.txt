@@ -6,3 +6,4 @@ requests
 speechrecognition
 pydub
 av
+streamlit-webrtc
