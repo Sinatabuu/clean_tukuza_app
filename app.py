@@ -4,6 +4,7 @@ from openai import OpenAIError
 
 # Set the OpenAI API key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+st.write("🔑 API key detected." if openai.api_key else "❌ No API key found.")
 
 # Streamlit page setup
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
