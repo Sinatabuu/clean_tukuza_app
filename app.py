@@ -24,14 +24,10 @@ if question:
             # ✅ This works with all OpenAI versions before and after 1.0
             st.success(response.choices[0].message["content"])
     except Exception as e:
-    if "AuthenticationError" in str(type(e)):
-        st.error("🚫 Authentication failed. Check your API key.")
-    else:
-        st.error(f"💥 Unexpected error:\n\n{str(e)}")
-
-        st.error("🚫 API Authentication failed. Check your OpenAI key.")
-    except Exception as e:
-        st.error(f"💥 Unexpected error:\n\n{str(e)}")
+        if "AuthenticationError" in str(type(e)):
+            st.error("🚫 Authentication failed. Check your API key.")
+        else:
+            st.error(f"💥 Unexpected error:\n\n{str(e)}")
 
 # Footer
 st.markdown(
