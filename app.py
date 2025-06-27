@@ -1,5 +1,31 @@
 import streamlit as st
 import openai
+import random
+import datetime
+import requests
+
+def get_daily_verse():
+    # Use today’s date to generate a consistent verse each day
+    random.seed(datetime.date.today().toordinal())
+    
+    # Example: Choose from 20 popular verse references
+    verse_list = [
+        "John 3:16", "Psalm 23:1", "Romans 8:28", "Philippians 4:13", "Isaiah 41:10",
+        "Proverbs 3:5", "Jeremiah 29:11", "Psalm 46:1", "Matthew 11:28", "Genesis 1:1",
+        "Hebrews 11:1", "1 Corinthians 13:4", "2 Timothy 1:7", "Romans 5:8", "James 1:5",
+        "1 Peter 5:7", "Romans 10:9", "Isaiah 40:31", "Joshua 1:9", "Psalm 119:105"
+    ]
+    today_verse = random.choice(verse_list)
+    
+    # Fetch from Bible API
+    url = f"https://bible-api.com/{today_verse.replace(' ', '%20')}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        return f"📖 *{today_verse}* — {data.get('text', '').strip()}"
+    except:
+        return "📖 Verse of the Day unavailable at the moment."
 
 # ✅ Set your API key from Streamlit Cloud secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
