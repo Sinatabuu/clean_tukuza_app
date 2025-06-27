@@ -5,6 +5,7 @@ import datetime
 import requests
 
 def get_daily_verse():
+    import random, datetime, requests  # optional safety
     # Use today’s date to generate a consistent verse each day
     random.seed(datetime.date.today().toordinal())
     
