@@ -2,7 +2,6 @@ import streamlit as st
 import openai
 from openai import AuthenticationError
 
-
 # Use secret API key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -23,7 +22,7 @@ if question:
                 ]
             )
             st.success(response.choices[0].message.content)
-    except openai.AuthenticationError:
+    except AuthenticationError:
         st.error("🚫 API Authentication failed. Double-check your key.")
     except Exception as e:
         st.error(f"💥 Unexpected error:\n\n{str(e)}")
