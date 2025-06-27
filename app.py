@@ -1,8 +1,7 @@
 import streamlit as st
 import openai
-from openai import AuthenticationError
+from openai import OpenAIError  # ✅ Updated import
 
-# Use secret API key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
@@ -22,8 +21,8 @@ if question:
                 ]
             )
             st.success(response.choices[0].message.content)
-    except AuthenticationError:
-        st.error("🚫 API Authentication failed. Double-check your key.")
+    except OpenAIError:
+        st.error("🚫 Authentication or API error. Please check your key.")
     except Exception as e:
         st.error(f"💥 Unexpected error:\n\n{str(e)}")
 
