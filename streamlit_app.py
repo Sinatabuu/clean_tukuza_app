@@ -33,6 +33,18 @@ else:
     # Create a chat input field to allow the user to enter a message. This will display
     # automatically at the bottom of the page.
     if prompt := st.chat_input("What is up?"):
+        st.markdown("🎙️ **Optional: Upload a WAV file to ask by voice**")
+        uploaded_audio = st.file_uploader("Upload your question as a WAV file", type=["wav"])
+
+    if uploaded_audio is not None:
+       with open("temp_audio.wav", "wb") as f:
+        f.write(uploaded_audio.getbuffer())
+    st.audio("temp_audio.wav", format="audio/wav")
+
+    st.info("Transcribing...")
+    transcript = transcribe_audio("temp_audio.wav")
+    st.success(f"📝 Transcribed: {transcript}")
+    question = transcript  # Replace manual input with voice
 
         # Store and display the current prompt.
         st.session_state.messages.append({"role": "user", "content": prompt})
