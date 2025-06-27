@@ -3,6 +3,22 @@ import openai
 import random
 import datetime
 import requests
+import speech_recognition as sr
+import os
+from pydub import AudioSegment
+
+def transcribe_audio(file_path):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(file_path) as source:
+        audio = recognizer.record(source)
+    try:
+        text = recognizer.recognize_google(audio)
+        return text
+    except sr.UnknownValueError:
+        return "Sorry, could not understand the audio."
+    except sr.RequestError:
+        return "Sorry, there was an issue with the speech recognition service."
+
 
 def get_daily_verse():
     import random, datetime, requests  # optional safety
