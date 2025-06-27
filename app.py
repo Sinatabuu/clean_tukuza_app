@@ -59,11 +59,11 @@ if typed:
 webrtc_ctx = webrtc_streamer(
     key="mic",
     mode=WebRtcMode.SENDONLY,
-    in_audio=True,
     audio_processor_factory=AudioProcessor,
     media_stream_constraints={"audio": True, "video": False},
     async_processing=True,
 )
+
 
 # Transcribe button
 if st.button("🎙️ Transcribe & Ask from Mic"):
