@@ -1,33 +1,10 @@
 import streamlit as st
-import openai
+from openai import OpenAI
+import requests
 import random
 import datetime
-import requests
-import speech_recognition as sr
-from streamlit_webrtc import webrtc_streamer, WebRtcMode
-import av
-import numpy as np
-import queue
 
-# Setup OpenAI key
-from openai import OpenAI
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-if question:
-    try:
-        with st.spinner("Answering..."):
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a helpful Bible-based assistant."},
-                    {"role": "user", "content": question}
-                ]
-            )
-            st.success(response.choices[0].message.content)
-    except Exception as e:
-        st.error(f"💥 Unexpected error:\n\n{str(e)}")
-
-# 🎯 Function to fetch daily Bible verse
+# --- DAILY BIBLE VERSE ---
 def get_daily_verse():
     verse_list = [
         "John 3:16", "Psalm 23:1", "Romans 8:28", "Philippians 4:13", "Isaiah 41:10",
@@ -36,83 +13,44 @@ def get_daily_verse():
         "1 Peter 5:7", "Romans 10:9", "Isaiah 40:31", "Joshua 1:9", "Psalm 119:105"
     ]
     random.seed(datetime.date.today().toordinal())
-    verse = random.choice(verse_list)
-    url = f"https://bible-api.com/{verse.replace(' ', '%20')}"
+    verse_ref = random.choice(verse_list)
     try:
-        r = requests.get(url)
-        r.raise_for_status()
-        data = r.json()
-        return f"📖 *{verse}* — {data.get('text', '').strip()}"
+        url = f"https://bible-api.com/{verse_ref.replace(' ', '%20')}"
+        response = requests.get(url)
+        data = response.json()
+        return f"📖 *{verse_ref}* — {data.get('text', '').strip()}"
     except:
         return "📖 Verse of the Day unavailable."
 
-# 🎙 Audio processor class for mic input
-audio_q = queue.Queue()
-
-class AudioProcessor:
-    def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
-        audio = frame.to_ndarray().flatten().astype(np.int16).tobytes()
-        audio_q.put(audio)
-        return frame
-
-# 🔧 Page setup
+# --- PAGE SETUP ---
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
 st.title("📖 Tukuza Yesu BibleBot")
 st.info(get_daily_verse())
-st.subheader("Ask by text or by voice:")
+st.subheader("Ask your Bible question below:")
 
-# Session memory
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# --- INPUT FIELD (DEFINED EARLY) ---
+question = st.text_input("❓ Ask a Bible question (Swali lako):")
 
-# 💬 Text input
-typed = st.chat_input("Type your Bible question here (Swali lako)...")
-if typed:
-    st.session_state.messages.append({"role": "user", "content": typed})
+# --- OPENAI CLIENT ---
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# 🎙 Mic button
-webrtc_ctx = webrtc_streamer(
-    key="mic",
-    mode=WebRtcMode.SENDONLY,
-    audio_processor_factory=AudioProcessor,
-    media_stream_constraints={"audio": True, "video": False},
-    async_processing=True,
-)
-
-
-# Transcribe button
-if st.button("🎙️ Transcribe & Ask from Mic"):
-    recognizer = sr.Recognizer()
+# --- AI REPLY ---
+if question:
     try:
-        audio_data = sr.AudioData(b"".join(list(audio_q.queue)), 16000, 2)
-        voice_question = recognizer.recognize_google(audio_data)
-        st.success(f"🗣 You said: {voice_question}")
-        st.session_state.messages.append({"role": "user", "content": voice_question})
-    except sr.UnknownValueError:
-        st.error("Sorry, couldn't understand your voice.")
-    except sr.RequestError:
-        st.error("Speech recognition service failed.")
-
-# Show full chat
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.markdown(m["content"])
-
-# Send last question to GPT
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    with st.chat_message("assistant"):
-        try:
-            stream = openai.ChatCompletion.create(
+        with st.spinner("🔍 Searching Scripture..."):
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
-                stream=True,
+                messages=[
+                    {"role": "system", "content": "You are a helpful Bible-based assistant."},
+                    {"role": "user", "content": question}
+                ]
             )
-            reply = st.write_stream(stream)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-        except Exception as e:
-            st.error(f"💥 Unexpected error:\n\n{str(e)}")
+            answer = response.choices[0].message.content
+            st.success(answer)
+    except Exception as e:
+        st.error(f"💥 Unexpected error:\n\n{str(e)}")
 
-# Footer
+# --- FOOTER ---
 st.markdown(
     "<hr><div style='text-align: center; font-size: 12px; color: gray;'>"
     "✝️ Created by <strong>Sammy Maigwa Karuri</strong> — Tukuza Yesu AI Toolkit"
