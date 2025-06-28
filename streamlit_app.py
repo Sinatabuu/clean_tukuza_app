@@ -6,7 +6,7 @@ import av
 import queue
 
 # 🔐 API key input
-openai_api_key = st.text_input("🔑 Enter your OpenAI API key:", type="password")
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 if not openai_api_key:
     st.warning("Please enter your key to continue.")
     st.stop()
