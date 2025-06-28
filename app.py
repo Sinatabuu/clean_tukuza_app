@@ -27,6 +27,10 @@ def get_daily_verse():
 
 # --- UI Setup ---
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="book")
+# Initialize session state for messages
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
 st.title("Tukuza Yesu BibleBot")
 def get_daily_verse():
     return "📖 John 3:16 — For God so loved the world..."
