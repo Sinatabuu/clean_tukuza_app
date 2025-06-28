@@ -10,7 +10,7 @@ from googletrans import Translator
 translator = Translator()
 
 # Set your API key from Streamlit secrets
-client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # --- Helper: Daily Verse ---
 def get_daily_verse():
