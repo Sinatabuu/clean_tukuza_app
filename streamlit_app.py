@@ -35,5 +35,11 @@ if question:
         st.session_state.messages.append({"role": "assistant", "content": reply})
     except Exception as e:
         st.error(f"⚠️ Error: {e}")
-
+# Footer credits
+st.markdown(
+    "<hr><div style='text-align: center; font-size: 12px; color: gray;'>"
+    "✝️ Created by <strong>Sammy Maigwa Karuri</strong> — Tukuza Yesu AI Toolkit"
+    "</div>",
+    unsafe_allow_html=True
+)
 
