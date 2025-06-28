@@ -7,3 +7,5 @@ speechrecognition
 pydub
 av
 streamlit-webrtc
+langdetect
+googletrans==4.0.0-rc1
