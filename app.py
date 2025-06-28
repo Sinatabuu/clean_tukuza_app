@@ -64,7 +64,7 @@ if question:
         st.session_state.messages.append({"role": "user", "content": question})
         st.session_state.messages.append({"role": "assistant", "content": reply})
     except Exception as e:
-        st.error(f"\ud83d\udca5 Unexpected error: {e}")
+        st.error(f"Unexpected error: {e}")
 
 # Footer
 st.markdown(
