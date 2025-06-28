@@ -37,23 +37,6 @@ webrtc_ctx = webrtc_streamer(
     async_processing=True,
 )
 
-def recognize_from_queue():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("🎙 Listening... speak now!")
-        audio_data = sr.AudioData(b"".join(list(audio_queue.queue)), 16000, 2)
-        try:
-            return recognizer.recognize_google(audio_data)
-        except:
-            return "Sorry, I couldn't understand."
-
-question = st.chat_input("Or type your Bible question here:")
-
-# 🎙 Button to process mic
-if st.button("📝 Transcribe Mic Input"):
-    question = recognize_from_queue()
-    st.success(f"📝 Transcribed: {question}")
-
 # 🧠 Chat logic
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
