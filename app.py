@@ -26,7 +26,7 @@ def get_daily_verse():
         return "\ud83d\udcd6 Verse of the Day unavailable."
 
 # --- UI Setup ---
-st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="\ud83d\udcd6")
+st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="book")
 st.title("\ud83d\udcd6 Tukuza Yesu BibleBot")
 st.info(get_daily_verse())
 
