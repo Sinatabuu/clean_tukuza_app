@@ -28,6 +28,8 @@ def get_daily_verse():
 # --- UI Setup ---
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="book")
 st.title("Tukuza Yesu BibleBot")
+def get_daily_verse():
+    return "📖 John 3:16 — For God so loved the world..."
 st.info(get_daily_verse())
 
 # --- Chat logic ---
