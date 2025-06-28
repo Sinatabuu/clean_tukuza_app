@@ -1,3 +1,9 @@
+[server]
+headless = true
+
+[browser]
+serverAddress = "localhost"
+
 [theme]
 primaryColor = "#4B0082"
 backgroundColor = "#FFFFFF"
@@ -6,6 +12,4 @@ textColor = "#000000"
 font = "sans serif"
 
 [server]
-headless = true
-port = 8501
-enableCORS = false
+scriptName = "app.py"  # or "streamlit_app.py"
