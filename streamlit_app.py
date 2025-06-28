@@ -27,10 +27,11 @@ class AudioProcessor:
         return frame
 
 # 🎤 Microphone streaming
+from streamlit_webrtc import webrtc_streamer, WebRtcMode
+
 webrtc_ctx = webrtc_streamer(
     key="speech",
-    mode="SENDONLY",
-    in_audio=True,
+    mode=WebRtcMode.SENDONLY,
     audio_processor_factory=AudioProcessor,
     media_stream_constraints={"audio": True, "video": False},
     async_processing=True,
