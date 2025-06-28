@@ -3,6 +3,11 @@ import openai
 import random
 import datetime
 import requests
+from langdetect import detect
+from googletrans import Translator
+
+# Initialize translation tool
+translator = Translator()
 
 # Set your API key from Streamlit secrets
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -21,38 +26,37 @@ def get_daily_verse():
         url = f"https://bible-api.com/{verse_ref.replace(' ', '%20')}"
         response = requests.get(url)
         data = response.json()
-        return f"\ud83d\udcd6 *{verse_ref}* \u2014 {data.get('text', '').strip()}"
+        return f"\U0001F4D6 *{verse_ref}* — {data.get('text', '').strip()}"
     except:
-        return "\ud83d\udcd6 Verse of the Day unavailable."
+        return "\U0001F4D6 Verse of the Day unavailable."
 
 # --- UI Setup ---
-st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="book")
-# Initialize session state for messages
+st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
+st.title("Tukuza Yesu BibleBot")
+st.info(get_daily_verse())
+
+# --- Session State ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.title("Tukuza Yesu BibleBot")
-def get_daily_verse():
-    return "📖 John 3:16 — For God so loved the world..."
-st.info(get_daily_verse())
+# --- Multilingual Input ---
+raw_input = st.chat_input("🖋️ Type your Bible question here (any language)...")
+question = None
+if raw_input:
+    try:
+        user_lang = detect(raw_input)
+        if user_lang != "en":
+            translated = translator.translate(raw_input, src=user_lang, dest="en")
+            question = translated.text
+        else:
+            question = raw_input
+    except:
+        question = raw_input  # Fallback if detection fails
 
-# --- Chat logic ---
-question = None  # placeholder to avoid NameError
-
-# Collect user input from chat box
-typed = st.chat_input("Type your Bible question here...")
-if typed:
-    question = typed
-
-# Placeholder for future voice input
-# Example:
-# if st.button("\ud83c\udfa4 Use Microphone"):
-#     question = recognize_from_queue()  # if you implement mic logic
-
-# Only run OpenAI if we have a valid question
+# --- Chat Completion ---
 if question:
     with st.chat_message("user"):
-        st.markdown(question)
+        st.markdown(raw_input)
 
     try:
         stream = client.chat.completions.create(
@@ -65,15 +69,15 @@ if question:
         )
         with st.chat_message("assistant"):
             reply = st.write_stream(stream)
-        st.session_state.messages.append({"role": "user", "content": question})
+        st.session_state.messages.append({"role": "user", "content": raw_input})
         st.session_state.messages.append({"role": "assistant", "content": reply})
     except Exception as e:
-        st.error(f"Unexpected error: {e}")
+        st.error(f"💥 Unexpected error: {e}")
 
 # Footer
 st.markdown(
     "<hr><div style='text-align: center; font-size: 12px; color: gray;'>"
-    "\u271d\ufe0f Created by <strong>Sammy Maigwa Karuri</strong> — Tukuza Yesu AI Toolkit"
+    "✝️ Created by <strong>Sammy Maigwa Karuri</strong> — Tukuza Yesu AI Toolkit"
     "</div>",
     unsafe_allow_html=True
 )
