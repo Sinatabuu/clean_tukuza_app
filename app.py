@@ -36,7 +36,7 @@ st.info(get_daily_verse())
 question = None  # placeholder to avoid NameError
 
 # Collect user input from chat box
-typed = st.chat_input("\ud83d\udd8b\ufe0f Type your Bible question here...")
+typed = st.chat_input("Type your Bible question here...")
 if typed:
     question = typed
 
