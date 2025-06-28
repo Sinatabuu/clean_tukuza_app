@@ -7,11 +7,6 @@ import queue
 
 # 🔐 API key input
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-if not openai_api_key:
-    st.warning("Please enter your key to continue.")
-    st.stop()
-
-client = openai.OpenAI(api_key=openai_api_key)
 
 # Set page config
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
