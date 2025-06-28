@@ -5,6 +5,20 @@ import speech_recognition as sr
 import av
 import queue
 
+question = None  # Always define first
+
+# Then fill it from input or voice
+question = st.chat_input("Or type your Bible question here:")
+
+# Or after transcribing mic:
+if st.button("📝 Transcribe Mic Input"):
+    question = recognize_from_queue()
+    st.success(f"📝 Transcribed: {question}")
+
+# Now it’s safe to check:
+if question:
+    ...
+
 # 🔐 API key input
 openai_api_key = st.text_input("🔑 Enter your OpenAI API key:")
 if not openai_api_key:
