@@ -6,7 +6,7 @@ import av
 import queue
 
 # 🔐 API key input
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Set page config
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
