@@ -1,6 +1,5 @@
 streamlit
 openai>=0.28
-streamlit
 openai
 requests
 speechrecognition
@@ -11,5 +10,4 @@ langdetect
 googletrans==4.0.0-rc1
 openai==1.3.9
 httpx==0.24.1
-langdetect
-googletrans==4.0.0-rc1
+
