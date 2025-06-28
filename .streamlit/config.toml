@@ -8,5 +8,5 @@ font = "sans serif"
 [server]
 headless = true
 [runtime]
-python_version = "3.12"
+
 
