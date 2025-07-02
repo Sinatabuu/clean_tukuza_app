@@ -8,4 +8,8 @@ streamlit-webrtc
 langdetect
 deep-translator
 httpx==0.24.1
+pandas
+scikit-learn
+joblib
+
 
