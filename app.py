@@ -5,12 +5,13 @@ import datetime
 import requests
 from langdetect import detect
 from googletrans import Translator
+import os
 
 # Initialize translation tool
 translator = Translator()
 
-# Set your API key from Streamlit secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# Initialize OpenAI client (new syntax for openai>=1.0.0)
+client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY"))
 
 # --- Helper: Daily Verse ---
 def get_daily_verse():
@@ -59,10 +60,10 @@ if question:
         st.markdown(raw_input)
 
     try:
-        stream = openai.ChatCompletion.create(
+        stream = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a Bible-based assistant."},
+                {"role": "system", "content": "You are a Bible-based assistant. Respond with Scripture-based wisdom, clarity, and love."},
                 {"role": "user", "content": question}
             ],
             stream=True,
