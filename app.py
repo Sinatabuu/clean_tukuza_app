@@ -7,11 +7,13 @@ from langdetect import detect
 from googletrans import Translator
 import os
 
-# Initialize translation tool
-translator = Translator()
+# ✅ NEW: create OpenAI client object for openai>=1.0.0
+client = openai.OpenAI(
+    api_key=st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY")
+)
 
-# Initialize OpenAI client (new syntax for openai>=1.0.0)
-client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY"))
+# Initialize translator
+translator = Translator()
 
 # --- Helper: Daily Verse ---
 def get_daily_verse():
@@ -27,9 +29,9 @@ def get_daily_verse():
         url = f"https://bible-api.com/{verse_ref.replace(' ', '%20')}"
         response = requests.get(url)
         data = response.json()
-        return f"\U0001F4D6 *{verse_ref}* — {data.get('text', '').strip()}"
+        return f"📖 *{verse_ref}* — {data.get('text', '').strip()}"
     except:
-        return "\U0001F4D6 Verse of the Day unavailable."
+        return "📖 Verse of the Day unavailable."
 
 # --- UI Setup ---
 st.set_page_config(page_title="Tukuza Yesu BibleBot", page_icon="📖")
@@ -40,8 +42,8 @@ st.info(get_daily_verse())
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- Multilingual Input ---
-raw_input = st.chat_input("🖋️ Type your Bible question here (any language)...")
+# --- Input ---
+raw_input = st.chat_input("🖋️ Ask your Bible question here (any language)...")
 question = None
 if raw_input:
     try:
@@ -52,18 +54,19 @@ if raw_input:
         else:
             question = raw_input
     except:
-        question = raw_input  # Fallback if detection fails
+        question = raw_input
 
-# --- Chat Completion ---
+# --- Response Logic ---
 if question:
     with st.chat_message("user"):
         st.markdown(raw_input)
 
     try:
+        # ✅ NEW CLIENT CALL for openai>=1.0.0
         stream = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a Bible-based assistant. Respond with Scripture-based wisdom, clarity, and love."},
+                {"role": "system", "content": "You are a helpful Bible-based assistant. Respond with love, truth, and Scripture references."},
                 {"role": "user", "content": question}
             ],
             stream=True,
@@ -73,7 +76,7 @@ if question:
         st.session_state.messages.append({"role": "user", "content": raw_input})
         st.session_state.messages.append({"role": "assistant", "content": reply})
     except Exception as e:
-        st.error(f"💥 Unexpected error: {e}")
+        st.error(f"💥 Error: {e}")
 
 # Footer
 st.markdown(
