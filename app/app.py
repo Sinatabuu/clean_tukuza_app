@@ -103,12 +103,6 @@ st.subheader("🧪 Spiritual Gifts Assessment")
 
 sample_input = st.text_input("🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
 
-# Force rerun after first input
-if sample_input and "lang_set" not in st.session_state:
-    st.session_state.lang_set = True
-    st.experimental_rerun()
-
-# Detect language
 if sample_input:
     try:
         user_lang = detect(sample_input)
@@ -116,7 +110,6 @@ if sample_input:
         user_lang = "en"
 else:
     user_lang = "en"
-
 
 
 # Original questions in English
