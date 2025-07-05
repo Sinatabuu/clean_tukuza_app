@@ -31,7 +31,6 @@ if tool == "📖 BibleBot":
     
     openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY")
 
-
     st.subheader("Ask the BibleBot 📜")
     st.caption("🙋 Ask anything related to the Bible or Christian life.")
 
