@@ -4,6 +4,7 @@ import os
 import joblib
 import numpy as np
 
+# ✅ FORCED GIT UPDATE — Multilingual version
 
 # ---------------------------
 # App Config
