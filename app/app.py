@@ -188,7 +188,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         except Exception as e:
             st.error(f"⚠️ Error during prediction: {e}")
 
-🎁 Spiritual Gifts Assessment
+#--🎁 Spiritual Gifts Assessment
 
 Dominant Gift: {prediction}
 Fivefold Role: {role}
