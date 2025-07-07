@@ -28,40 +28,38 @@ st.title("Tukuza Yesu AI Toolkit")
 # 1. BibleBot
 # ---------------------------
 if tool == "📖 BibleBot":
-    from openai import OpenAI
+    import openai
 
-    api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
-    if not api_key:
-        st.error("❌ OPENAI_API_KEY not found.")
-        st.stop()  # Stops Streamlit from running further
-    else:
-        st.success("✅ API key loaded successfully.")  # DEBUG: remove later
-        client = OpenAI(api_key=api_key)
+openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+if not openai.api_key:
+    st.error("❌ OPENAI_API_KEY not found.")
+    st.stop()
 
-        st.subheader("Ask the BibleBot 📜")
-        st.caption("🙋 Ask anything related to the Bible or Christian life.")
 
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
+    st.subheader("Ask the BibleBot 📜")
+    st.caption("🙋 Ask anything related to the Bible or Christian life.")
 
-        question = st.chat_input("🖋️ Ask your Bible question...")
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-        if question:
-            st.session_state.messages.append({"role": "user", "content": question})
-            with st.chat_message("user"):
-                st.markdown(question)
+    question = st.chat_input("🖋️ Ask your Bible question...")
 
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=st.session_state.messages
-                )
-                reply = response.choices[0].message.content
-                with st.chat_message("assistant"):
-                    st.markdown(reply)
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-            except Exception as e:
-                st.error(f"⚠️ Error: {e}")
+    if question:
+        st.session_state.messages.append({"role": "user", "content": question})
+        with st.chat_message("user"):
+            st.markdown(question)
+
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=st.session_state.messages
+            )
+            reply = response.choices[0].message.content
+            with st.chat_message("assistant"):
+                st.markdown(reply)
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+        except Exception as e:
+            st.error(f"⚠️ Error: {e}")
 
 # ---------------------------
 # 2. Verse Classifier
