@@ -28,7 +28,8 @@ st.title("Tukuza Yesu AI Toolkit")
 # 1. BibleBot
 # ---------------------------
 if tool == "📖 BibleBot":
-    openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY")
+    from openai import OpenAI
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY"))
 
     st.subheader("Ask the BibleBot 📜")
     st.caption("🙋 Ask anything related to the Bible or Christian life.")
@@ -44,7 +45,7 @@ if tool == "📖 BibleBot":
             st.markdown(question)
 
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=st.session_state.messages
             )
