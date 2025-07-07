@@ -46,15 +46,12 @@ if tool == "📖 BibleBot":
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=[
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                ]
+                messages=st.session_state.messages
             )
-            bot_reply = response["choices"][0]["message"]["content"]
+            reply = response.choices[0].message.content
             with st.chat_message("assistant"):
-                st.markdown(bot_reply)
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+                st.markdown(reply)
+            st.session_state.messages.append({"role": "assistant", "content": reply})
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
 
