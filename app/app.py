@@ -29,10 +29,13 @@ st.title("Tukuza Yesu AI Toolkit")
 # ---------------------------
 if tool == "📖 BibleBot":
     from openai import OpenAI
-    api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY")
+
+    api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
     if not api_key:
-        st.error("❌ OPENAI_API_KEY not found in secrets or environment variables.")
+        st.error("❌ OPENAI_API_KEY not found.")
+        st.stop()  # Stops Streamlit from running further
     else:
+        st.success("✅ API key loaded successfully.")  # DEBUG: remove later
         client = OpenAI(api_key=api_key)
 
         st.subheader("Ask the BibleBot 📜")
