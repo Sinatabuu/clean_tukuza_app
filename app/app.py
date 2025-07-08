@@ -51,7 +51,8 @@ if not api_key:
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    question = st.chat_input("🖋️ Ask your Bible question...")
+    question = st.text_input("🖋️ Ask your Bible question...")
+
 
     if question:
         st.session_state.messages.append({"role": "user", "content": question})
