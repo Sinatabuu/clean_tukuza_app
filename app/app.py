@@ -1,5 +1,5 @@
 import streamlit as st
-import openai
+from openai import OpenAI
 import os
 import joblib
 import numpy as np
@@ -39,7 +39,6 @@ if not api_key:
 
 # ✅ Create an OpenAI client using new SDK structure
 client = OpenAI(api_key=api_key)
-
 st.subheader("Ask the BibleBot 📜")
 st.caption("🙋 Ask anything related to the Bible or Christian life.")
 
