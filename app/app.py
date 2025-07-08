@@ -30,49 +30,42 @@ st.title("Tukuza Yesu AI Toolkit")
 # ---------------------------
 if tool == "📖 BibleBot":
     from openai import OpenAI
-    import os
+    api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 
-# Load API key from Streamlit secrets or environment variable
-api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        st.warning("⚠️ Please set your OPENAI_API_KEY in secrets.toml or environment variables.")
+    else:
+        client = OpenAI(api_key=api_key)
 
-if not api_key:
-    st.error("❌ OPENAI_API_KEY not found.")
-    st.stop()
+        st.subheader("Ask the BibleBot 📜")
+        st.caption("🙋 Ask anything related to the Bible or Christian life.")
 
-    client = OpenAI(api_key=api_key)
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
 
-    if not client.api_key:
-        st.error("❌ OPENAI_API_KEY not found.")
-        st.stop()
+        # This should always show now
+        question = st.chat_input("🖋️ Ask your Bible question...")
 
-    st.subheader("Ask the BibleBot 📜")
-    st.caption("🙋 Ask anything related to the Bible or Christian life.")
+        if question:
+            st.session_state.messages.append({"role": "user", "content": question})
+            with st.chat_message("user"):
+                st.markdown(question)
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+            try:
+                stream = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages
+                    ],
+                    stream=True,
+                )
+                with st.chat_message("assistant"):
+                    reply = st.write_stream(stream)
+                st.session_state.messages.append({"role": "assistant", "content": reply})
+            except Exception as e:
+                st.error(f"⚠️ Error: {e}")
 
-    question = st.text_input("🖋️ Ask your Bible question...")
-
-
-    if question:
-        st.session_state.messages.append({"role": "user", "content": question})
-        with st.chat_message("user"):
-            st.markdown(question)
-
-        try:
-            stream = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                ],
-                stream=True,
-            )
-            with st.chat_message("assistant"):
-                reply = st.write_stream(stream)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-        except Exception as e:
-            st.error(f"⚠️ Error: {e}")
 
 # ---------------------------
 # 2. Verse Classifier
