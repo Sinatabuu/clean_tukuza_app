@@ -30,10 +30,16 @@ st.title("Tukuza Yesu AI Toolkit")
 # ---------------------------
 if tool == "📖 BibleBot":
     from openai import OpenAI
+    import os
 
-    client = OpenAI(
-    api_key=st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
-)
+# Load API key from Streamlit secrets or environment variable
+api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    st.error("❌ OPENAI_API_KEY not found.")
+    st.stop()
+
+    client = OpenAI(api_key=api_key)
 
     if not client.api_key:
         st.error("❌ OPENAI_API_KEY not found.")

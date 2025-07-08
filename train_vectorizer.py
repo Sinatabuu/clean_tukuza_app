@@ -1,28 +1,23 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
 import joblib
 import os
 
-# 🔄 Load your verse dataset
-data_path = "data/verse_training_data.csv"  # update path if needed
-df = pd.read_csv(data_path)
+# Load training data
+data = pd.read_csv("app/verse_training_data.csv")  # Make sure this file exists
+X = data["verse"]
+y = data["label"]
 
-# 🧹 Clean missing data
-df = df.dropna(subset=["verse", "label"])
+# Create pipeline
+vectorizer = TfidfVectorizer()
+X_vec = vectorizer.fit_transform(X)
 
-# ✨ Vectorization and classification pipeline
-vectorizer = TfidfVectorizer(stop_words='english')
-X = vectorizer.fit_transform(df["verse"])
-y = df["label"]
+model = LogisticRegression()
+model.fit(X_vec, y)
 
-# 📦 Save vectorizer
+# Save vectorizer and model
 os.makedirs("models", exist_ok=True)
 joblib.dump(vectorizer, "models/vectorizer.pkl")
-
-# Optional: Train and save a classifier too
-model = LogisticRegression(max_iter=1000)
-model.fit(X, y)
-joblib.dump(model, "models/model.pkl")
-
-print("✅ vectorizer.pkl and model.pkl saved to /models/")
+joblib.dump(model, "models/model.pkl")  # Optional if you need a different model
