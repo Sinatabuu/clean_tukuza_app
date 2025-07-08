@@ -11,6 +11,7 @@ import numpy as np
 # ---------------------------
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="centered")
 
+
 # ---------------------------
 # Sidebar Navigation
 # ---------------------------
@@ -29,7 +30,11 @@ st.title("Tukuza Yesu AI Toolkit")
 # ---------------------------
 if tool == "📖 BibleBot":
     from openai import OpenAI
-    client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY")))
+
+    client = OpenAI(
+    api_key=st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+)
+
     if not client.api_key:
         st.error("❌ OPENAI_API_KEY not found.")
         st.stop()
