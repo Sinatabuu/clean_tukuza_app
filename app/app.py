@@ -68,7 +68,7 @@ if tool == "📖 BibleBot":
 elif tool == "🔖 Verse Classifier":
     st.subheader("Classify a Bible Verse")
 
-    model_path = os.path.join("models", "gift_model.pkl")
+    model_path = os.path.join("models", "model.pkl")  # ✅ correct model
     vectorizer_path = os.path.join("models", "vectorizer.pkl")
 
     model = joblib.load(model_path)
@@ -84,6 +84,7 @@ elif tool == "🔖 Verse Classifier":
             X = vectorizer.transform([verse])
             prediction = model.predict(X)[0]
             st.success(f"🧠 Detected Topic: **{prediction}**")
+
 
 # ---------------------------
 # 3. Daily Verse
