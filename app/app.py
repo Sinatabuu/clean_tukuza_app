@@ -3,73 +3,71 @@ from openai import OpenAI
 import os
 import joblib
 import numpy as np
+from streamlit_webrtc import webrtc_streamer
+import av
+import queue
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from modules.biblebot_ui import biblebot_ui
 
-# ✅ FORCED GIT UPDATE — Multilingual version
+
+# 🌍 Translation Functions
+def translate_user_input(text, target_lang="en"):
+    detected_lang = detect(text)
+    if detected_lang != 'en':
+        translated = GoogleTranslator(source='auto', target='en').translate(text)
+        return translated, detected_lang
+    return text, detected_lang
+
+def translate_bot_response(text, target_lang):
+    if target_lang != 'en':
+        return GoogleTranslator(source='en', target=target_lang).translate(text)
+    return text
+
+# 🎤 Voice Input Setup
+audio_queue = queue.Queue()
+
+class AudioProcessor:
+    def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
+        audio_queue.put(frame.to_ndarray().flatten().astype("float32").tobytes())
+        return frame
+
 
 # ---------------------------
 # App Config
 # ---------------------------
-st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="centered")
+st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
+
 
 
 # ---------------------------
 # Sidebar Navigation
 # ---------------------------
-st.sidebar.title("Tukuza Yesu")
-tool = st.sidebar.radio("🛠 Choose a Tool:", [
-    "📖 BibleBot", 
-    "🔖 Verse Classifier", 
-    "🌅 Daily Verse", 
+st.sidebar.title("✝️ Tukuza Yesu Toolkit")
+st.sidebar.markdown("**Empowering Faith with AI**")
+
+
+tool = st.sidebar.radio("🛠️ Select a Tool", [
+    "📖 BibleBot",
+    "🔖 Verse Classifier",
+    "🌅 Daily Verse",
     "🧪 Spiritual Gifts Assessment"
 ])
 
-st.title("Tukuza Yesu AI Toolkit")
+
+# Optional footer or version
+st.sidebar.markdown("---")
+st.sidebar.caption("🔄 v1.0 | Developed by Sammy Karuri")
+
+#st.title("Tukuza Yesu AI Toolkit")
 
 # ---------------------------
 # 1. BibleBot
 # ---------------------------
-import openai
-from openai import OpenAI
-
-api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
-
-if not api_key:
-    st.error("❌ OPENAI_API_KEY not found in secrets or environment.")
-    st.stop()
-
-# ✅ Create an OpenAI client using new SDK structure
-client = OpenAI(api_key=api_key)
-st.subheader("Ask the BibleBot 📜")
-st.caption("🙋 Ask anything related to the Bible or Christian life.")
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-question = st.chat_input("🖋️ Ask your Bible question...")
-
-if question:
-    st.session_state.messages.append({"role": "user", "content": question})
-    with st.chat_message("user"):
-        st.markdown(question)
-
-    try:
-        # ✅ Use new client.chat.completions.create pattern
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
-        with st.chat_message("assistant"):
-            reply = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-    except Exception as e:
-        st.error(f"⚠️ Error: {e}")
-
-
-
+if tool == "📖 BibleBot":
+    biblebot_ui()
+    
 
 # ---------------------------
 # 2. Verse Classifier
