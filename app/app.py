@@ -171,7 +171,11 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     else:
         questions = questions_en
 
-    st.caption("Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree).")
+    scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
+    if user_lang != "en":
+        scale_instruction = GoogleTranslator(source='en', target=user_lang).translate(scale_instruction)
+    st.caption(scale_instruction)
+
 
     with st.form("gift_assessment_form"):
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3) for i, q in enumerate(questions)]
