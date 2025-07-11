@@ -1,19 +1,83 @@
-# 💬 Chatbot template
 
-A simple Streamlit app that shows how to build a chatbot using OpenAI's GPT-3.5.
+# 📖 Tukuza Yesu AI Toolkit
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://chatbot-template.streamlit.app/)
+Welcome to the **Tukuza Yesu AI Toolkit**, a faith-based Streamlit app that helps believers interact with biblical content using modern AI. Developed by **Sammy Karuri**, this toolkit empowers spiritual discovery through intelligent tools, translation, and personalization.
 
-### How to run it on your own machine
+---
 
-1. Install the requirements
+## 🚀 Features
 
+### 1. 📖 BibleBot (Multilingual AI Chat)
+- Ask any Bible-related question.
+- Supports multiple languages: English, Swahili, French, Spanish, and German.
+- Automatically translates input/output.
+- Includes download option for full chat.
+
+### 2. 🔖 Verse Classifier
+- Classifies Bible verses by theme using a machine learning model.
+- Helps identify topical relevance of scripture.
+
+### 3. 🌅 Daily Verse
+- Provides a fresh encouraging verse for each day.
+
+### 4. 🧪 Spiritual Gifts Assessment
+- Discover your spiritual gifts.
+- Supports translated questions and results.
+- Maps dominant gift to Fivefold Ministry roles (Ephesians 4:11).
+- Supports mobile-friendly UI and clean form input.
+
+---
+
+## 📱 Mobile Optimized
+- Auto-scaling layout
+- Simple interface for easy access on phones
+- Button and input resizing for readability
+
+---
+
+## 🔧 Setup Instructions
+
+1. Clone this repo:
+   ```bash
+   git clone https://github.com/Sinatabuu/clean_tukuza_app.git
+   cd clean_tukuza_app
    ```
-   $ pip install -r requirements.txt
+
+2. Create a virtual environment and activate it:
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate  # Windows
    ```
 
-2. Run the app
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
+4. Add your OpenAI API key in a `.streamlit/secrets.toml` file:
+   ```toml
+   OPENAI_API_KEY = "sk-..."
    ```
-   $ streamlit run streamlit_app.py
+
+5. Run the app:
+   ```bash
+   streamlit run app/app.py
    ```
+
+---
+
+## 📧 Coming Soon
+- Email your spiritual gift results
+- Visualize gift distributions
+- Save progress to cloud
+- Fully voice-controlled experience
+
+---
+
+## 🧑‍💻 Developer
+**Sammy Karuri**  
+Built with faith in Christ | [Tukuza Yesu AI Toolkit]
+
+---
+
+> “Let your light so shine before men…” – Matthew 5:16
