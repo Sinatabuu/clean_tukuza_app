@@ -3,6 +3,7 @@ import streamlit as st
 from openai import OpenAI
 from langdetect import detect
 from deep_translator import GoogleTranslator
+import speech_recognition as sr
 import os
 
 def biblebot_ui():
@@ -25,10 +26,29 @@ def biblebot_ui():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # 📥 Input only
-    user_input = st.text_input("Type your Bible question:", key="biblebot_input")
+    # 🎙️ Input Field with Mic
+    col1, col2 = st.columns([9, 1])
+    with col1:
+        user_input = st.text_input("Type or speak your question:", key="biblebot_input")
+    with col2:
+        mic_clicked = st.button("🎙️", key="biblebot_mic")
 
-    # 📝 Handle typed input
+    # 🎤 Handle voice input
+    if mic_clicked:
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            try:
+                audio = recognizer.listen(source, timeout=5)
+                voice_text = recognizer.recognize_google(audio)
+                user_input = voice_text
+            except sr.UnknownValueError:
+                st.warning("⚠️ Could not understand.")
+                return
+            except Exception as e:
+                st.error(f"🎙️ Error: {e}")
+                return
+
+    # 📝 Handle typed or voice input
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
 
@@ -51,18 +71,25 @@ def biblebot_ui():
             with st.chat_message("assistant"):
                 reply_container = st.empty()
                 reply = ""
-
                 for chunk in stream:
                     part = chunk.choices[0].delta.content or ""
                     reply += part
-                    reply_container.markdown(reply)
 
-            # 🌐 Translate if needed
+            # Translate after stream ends
             if original_lang != 'en':
                 reply = GoogleTranslator(source='en', target=original_lang).translate(reply)
-                reply_container.markdown(reply)
 
+            reply_container.markdown(reply)
             st.session_state.messages.append({"role": "assistant", "content": reply})
 
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
+
+    # Display last chat only
+    if st.session_state.messages:
+        last_user = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "user"), "")
+        last_bot = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "assistant"), "")
+        if last_user and last_bot:
+            st.markdown("### 💬 Chat Summary")
+            st.markdown(f"**🙋 You:** {last_user}")
+            st.markdown(f"**🤖 BibleBot:** {last_bot}")
