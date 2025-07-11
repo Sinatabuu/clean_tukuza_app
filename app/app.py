@@ -62,8 +62,7 @@ if "user_profile" not in st.session_state:
 elif "user_profile" in st.session_state:
     profile = st.session_state.user_profile
     st.success(f"Welcome back, {profile['name']} – {profile['stage']}")
-    # commented out for simplicity
-    #st.json(profile)
+    # st.json(profile)  # Removed for clean UI
 
 # ---------------------------
 # Sidebar Navigation
