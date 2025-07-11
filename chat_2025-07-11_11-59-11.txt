@@ -1,0 +1,6 @@
+USER:
+jesus
+
+ASSISTANT:
+Jesus Christ is the central figure of Christianity, believed by Christians to be the son of God and the savior of humanity. His life and teachings are recorded in the New Testament of the Bible, and he is considered by many to be a prophet, teacher, and example of love, compassion, and sacrifice. His death on the cross and subsequent resurrection are central to the Christian faith and belief in forgiveness and redemption.
+

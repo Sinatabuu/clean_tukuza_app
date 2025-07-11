@@ -57,12 +57,13 @@ def biblebot_ui():
                 for chunk in stream:
                     part = chunk.choices[0].delta.content or ""
                     reply += part
+                    reply_container.markdown(reply)
 
             # Translate after stream ends
             if selected_lang != 'en':
                 reply = GoogleTranslator(source='en', target=selected_lang).translate(reply)
+                reply_container.markdown(reply)
 
-            reply_container.markdown(reply)
             st.session_state.messages.append({"role": "assistant", "content": reply})
 
             # 📂 Save chat (simple local file)
