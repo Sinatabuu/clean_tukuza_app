@@ -6,6 +6,8 @@ from deep_translator import GoogleTranslator
 import speech_recognition as sr
 import os
 import streamlit.components.v1 as components
+from datetime import datetime
+
 
 def biblebot_ui():
     # ✅ Setup OpenAI Client
@@ -30,6 +32,9 @@ def biblebot_ui():
             height=0,
         )
         st.session_state.is_mobile = False  # default fallback
+
+    # 🌐 Language switcher
+    st.session_state.lang = st.selectbox("🌍 Select language", ["en", "sw", "fr", "de", "es"], index=0)
 
     # ✅ Title
     st.subheader("📖 BibleBot (Multilingual)")
@@ -69,10 +74,9 @@ def biblebot_ui():
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
 
-        # Detect and translate
-        detected_lang = detect(user_input)
-        original_lang = detected_lang
-        input_en = GoogleTranslator(source='auto', target='en').translate(user_input) if detected_lang != 'en' else user_input
+        # Translate if not in English
+        selected_lang = st.session_state.lang
+        input_en = GoogleTranslator(source='auto', target='en').translate(user_input) if selected_lang != 'en' else user_input
 
         # Send to OpenAI
         try:
@@ -93,16 +97,28 @@ def biblebot_ui():
                     reply += part
 
             # Translate after stream ends
-            if original_lang != 'en':
-                reply = GoogleTranslator(source='en', target=original_lang).translate(reply)
+            if selected_lang != 'en':
+                reply = GoogleTranslator(source='en', target=selected_lang).translate(reply)
 
             reply_container.markdown(reply)
             st.session_state.messages.append({"role": "assistant", "content": reply})
 
+            # 💾 Save chat (simple local file)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            file_path = f"chat_{timestamp}.txt"
+            with open(file_path, "w", encoding="utf-8") as f:
+                for msg in st.session_state.messages:
+                    role = msg['role']
+                    content = msg['content']
+                    f.write(f"{role.upper()}:\n{content}\n\n")
+
+            with open(file_path, "rb") as f:
+                st.download_button("📥 Download Chat", f, file_name=file_path, mime="text/plain")
+
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
 
-    # Display last chat only
+    # Display last chat only (optional)
     if st.session_state.messages:
         last_user = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "user"), "")
         last_bot = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "assistant"), "")
@@ -110,6 +126,10 @@ def biblebot_ui():
             st.markdown("### 💬 Chat Summary")
             st.markdown(f"**👋 You:** {last_user}")
             st.markdown(f"**🤖 BibleBot:** {last_bot}")
+
+    # 📱 Mobile Layout Tweaks
+    if st.session_state.get("is_mobile", False):
+        st.markdown("<style>.stButton, .stTextInput, .stDownloadButton { font-size: 90% !important; }</style>", unsafe_allow_html=True)
 
     # © Credit - Always show
     st.markdown("---")
