@@ -26,27 +26,28 @@ def biblebot_ui():
         st.session_state.messages = []
 
     # 🎙️ Voice + Input in One Row
-    col1, col2 = st.columns([9, 1])
-    with col1:
-        user_input = st.text_input("", placeholder="Type or speak your Bible question...", key="biblebot_input")
-    with col2:
-        mic_clicked = st.button("🎙️", key="biblebot_mic")
+   #col1, col2 = st.columns([9, 1])
+    #with col1:
+        user_input = st.text_input("Type your Bible question:", key="biblebot_input")
+
+    #with col2:
+    #    mic_clicked = st.button("🎙️", key="biblebot_mic")
 
     # 🎤 Voice Input
-    if mic_clicked:
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
-            try:
-                st.info("🎙 Listening...")
-                audio = recognizer.listen(source, timeout=5)
-                voice_text = recognizer.recognize_google(audio)
-                user_input = voice_text
-            except sr.UnknownValueError:
-                st.warning("⚠️ Could not understand.")
-                return
-            except Exception as e:
-                st.error(f"🎙️ Error: {e}")
-                return
+    #if mic_clicked:
+     #   recognizer = sr.Recognizer()
+      #  with sr.Microphone() as source:
+      #      try:
+       #         st.info("🎙 Listening...")
+        #        audio = recognizer.listen(source, timeout=5)
+         #       voice_text = recognizer.recognize_google(audio)
+          #      user_input = voice_text
+           # except sr.UnknownValueError:
+            #    st.warning("⚠️ Could not understand.")
+             #   return
+            #except Exception as e:
+             #   st.error(f"🎙️ Error: {e}")
+              #  return
 
     # 🧠 Process input
     if user_input:

@@ -2,21 +2,6 @@ streamlit
 openai
 langdetect
 deep-translator
-speechrecognition
-pyaudio ; platform_system == "Windows"
-streamlit-webrtc
 joblib
 scikit-learn
-pandas
-numpy
-nltk
-beautifulsoup4
-requests
-transformers
-torch
-sentence-transformers
-scipy
-scikit-image
-opencv-python
-pillow
-matplotlib
+streamlit-webrtc
