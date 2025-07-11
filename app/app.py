@@ -180,8 +180,8 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     with st.form("gift_assessment_form"):
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3) for i, q in enumerate(questions)]
 
-    submit_text = "🎯 Discover My Spiritual Gift"
-    if user_lang != "en":
+        submit_text = "🎯 Discover My Spiritual Gift"
+        if user_lang != "en":
             submit_text = GoogleTranslator(source='en', target=user_lang).translate(submit_text)
 
         submitted = st.form_submit_button(submit_text)
