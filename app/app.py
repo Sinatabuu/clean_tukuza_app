@@ -10,7 +10,6 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
-from modules.user_profile import create_or_load_profile, load_profiles, save_profiles
 
 # 🌍 Translation Functions
 def translate_user_input(text, target_lang="en"):
@@ -41,8 +40,29 @@ class AudioProcessor:
 # ---------------------------
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
 
-# 🔐 Load or create user profile
-create_or_load_profile()
+# 🔐 Session-based user profile
+if "user_profile" not in st.session_state:
+    st.subheader("👤 Create Your Discipleship Profile")
+
+    name = st.text_input("Your Name")
+    age = st.number_input("Your Age", min_value=10, max_value=100, step=1)
+    stage = st.selectbox("Your Faith Stage", [
+        "New Believer", "Growing Disciple", "Ministry Ready", "Faith Leader"
+    ])
+
+    if st.button("✅ Save Profile"):
+        st.session_state.user_profile = {
+            "name": name,
+            "age": age,
+            "stage": stage,
+            "history": []
+        }
+        st.success("Profile created for this session!")
+
+elif "user_profile" in st.session_state:
+    profile = st.session_state.user_profile
+    st.success(f"Welcome back, {profile['name']} – {profile['stage']}")
+    st.json(profile)
 
 # ---------------------------
 # Sidebar Navigation
@@ -194,16 +214,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             st.success(result_msg)
             st.info(role_msg)
             st.markdown(verse_msg)
-
-            # ✅ Log to user profile history
-            profiles = load_profiles()
-            user_id = st.session_state.user_id
-            profiles[user_id]["history"].append({
-                "tool": "Spiritual Gifts",
-                "gift": prediction,
-                "fivefold_role": role
-            })
-            save_profiles(profiles)
 
         except Exception as e:
             st.error(f"⚠️ Error during prediction: {e}")
