@@ -3,7 +3,6 @@ import streamlit as st
 from openai import OpenAI
 from langdetect import detect
 from deep_translator import GoogleTranslator
-import speech_recognition as sr
 import os
 from datetime import datetime
 
@@ -30,10 +29,10 @@ def biblebot_ui():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # 📥 Chat Input Field + Mic Button (desktop only)
+    # 📥 Chat Input Field
     user_input = st.chat_input("Type your question here:")
 
-    # 📝 Handle typed or voice input
+    # 📝 Handle typed input
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
 
