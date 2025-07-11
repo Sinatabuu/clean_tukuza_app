@@ -10,10 +10,12 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
-
+from modules.user_profile import create_or_load_profile, load_profiles, save_profiles
 
 # 🌍 Translation Functions
 def translate_user_input(text, target_lang="en"):
+    from langdetect import detect
+    from deep_translator import GoogleTranslator
     detected_lang = detect(text)
     if detected_lang != 'en':
         translated = GoogleTranslator(source='auto', target='en').translate(text)
@@ -21,6 +23,7 @@ def translate_user_input(text, target_lang="en"):
     return text, detected_lang
 
 def translate_bot_response(text, target_lang):
+    from deep_translator import GoogleTranslator
     if target_lang != 'en':
         return GoogleTranslator(source='en', target=target_lang).translate(text)
     return text
@@ -33,21 +36,17 @@ class AudioProcessor:
         audio_queue.put(frame.to_ndarray().flatten().astype("float32").tobytes())
         return frame
 
-
 # ---------------------------
 # App Config
 # ---------------------------
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
 
-
+# 🔐 Load or create user profile
+create_or_load_profile()
 
 # ---------------------------
 # Sidebar Navigation
 # ---------------------------
-#st.sidebar.title("✝️ Tukuza Yesu Toolkit")
-#st.sidebar.markdown("**Empowering Faith with AI**")
-
-
 st.markdown("### ✝️ Tukuza Yesu Toolkit")
 tool = st.selectbox("🛠️ Select a Tool", [
     "📖 BibleBot",
@@ -56,19 +55,11 @@ tool = st.selectbox("🛠️ Select a Tool", [
     "🧪 Spiritual Gifts Assessment"
 ], index=0)  # Default to BibleBot
 
-
-# Optional footer or version
-#st.sidebar.markdown("---")
-#st.sidebar.caption("🔄 v1.0 | Developed by Sammy Karuri")
-
-#st.title("Tukuza Yesu AI Toolkit")
-
 # ---------------------------
 # 1. BibleBot
 # ---------------------------
 if tool == "📖 BibleBot":
     biblebot_ui()
-    
 
 # ---------------------------
 # 2. Verse Classifier
@@ -92,7 +83,6 @@ elif tool == "🔖 Verse Classifier":
             X = vectorizer.transform([verse])
             prediction = model.predict(X)[0]
             st.success(f"🧠 Detected Topic: **{prediction}**")
-
 
 # ---------------------------
 # 3. Daily Verse
@@ -177,7 +167,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         scale_instruction = GoogleTranslator(source='en', target=user_lang).translate(scale_instruction)
     st.caption(scale_instruction)
 
-
     with st.form("gift_assessment_form"):
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3) for i, q in enumerate(questions)]
 
@@ -205,6 +194,16 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             st.success(result_msg)
             st.info(role_msg)
             st.markdown(verse_msg)
+
+            # ✅ Log to user profile history
+            profiles = load_profiles()
+            user_id = st.session_state.user_id
+            profiles[user_id]["history"].append({
+                "tool": "Spiritual Gifts",
+                "gift": prediction,
+                "fivefold_role": role
+            })
+            save_profiles(profiles)
 
         except Exception as e:
             st.error(f"⚠️ Error during prediction: {e}")
