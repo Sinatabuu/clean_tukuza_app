@@ -44,21 +44,22 @@ st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout
 # ---------------------------
 # Sidebar Navigation
 # ---------------------------
-st.sidebar.title("✝️ Tukuza Yesu Toolkit")
-st.sidebar.markdown("**Empowering Faith with AI**")
+#st.sidebar.title("✝️ Tukuza Yesu Toolkit")
+#st.sidebar.markdown("**Empowering Faith with AI**")
 
 
-tool = st.sidebar.radio("🛠️ Select a Tool", [
+st.markdown("### ✝️ Tukuza Yesu Toolkit")
+tool = st.selectbox("🛠️ Select a Tool", [
     "📖 BibleBot",
     "🔖 Verse Classifier",
     "🌅 Daily Verse",
     "🧪 Spiritual Gifts Assessment"
-])
+], index=0)  # Default to BibleBot
 
 
 # Optional footer or version
-st.sidebar.markdown("---")
-st.sidebar.caption("🔄 v1.0 | Developed by Sammy Karuri")
+#st.sidebar.markdown("---")
+#st.sidebar.caption("🔄 v1.0 | Developed by Sammy Karuri")
 
 #st.title("Tukuza Yesu AI Toolkit")
 
