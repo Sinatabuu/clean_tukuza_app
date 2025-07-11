@@ -5,6 +5,7 @@ from langdetect import detect
 from deep_translator import GoogleTranslator
 import speech_recognition as sr
 import os
+import streamlit.components.v1 as components
 
 def biblebot_ui():
     # ✅ Setup OpenAI Client
@@ -14,6 +15,21 @@ def biblebot_ui():
         return
 
     client = OpenAI(api_key=api_key)
+
+    # ✅ Detect Mobile (Responsive)
+    if "is_mobile" not in st.session_state:
+        components.html(
+            """
+            <script>
+                const isMobile = window.innerWidth < 768;
+                const streamlitDoc = window.parent.document;
+                streamlitDoc.body.setAttribute('data-mobile', isMobile);
+                window.parent.postMessage({ type: 'streamlit:setComponentValue', value: isMobile }, '*');
+            </script>
+            """,
+            height=0,
+        )
+        st.session_state.is_mobile = False  # default fallback
 
     # ✅ Title
     st.subheader("📖 BibleBot (Multilingual)")
@@ -25,13 +41,16 @@ def biblebot_ui():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # 🎤 Mic Button beside Chat Input
-    mic_clicked = st.button("🎤", key="biblebot_mic")
+    # 📥 Chat Input Field + Mic Button (desktop only)
+    col1, col2 = st.columns([9, 1])
+    with col1:
+        user_input = st.chat_input("Type or speak your question:")
+    with col2:
+        mic_clicked = False
+        if not st.session_state.get("is_mobile", False):
+            mic_clicked = st.button("🎤", key="biblebot_mic")
 
-    # 🖊️ Chat input field with enter/send icon
-    user_input = st.chat_input("Type or speak your question:")
-
-    # 🎤 Handle voice input
+    # 🎤 Handle voice input (desktop only)
     if mic_clicked:
         recognizer = sr.Recognizer()
         with sr.Microphone() as source:
@@ -92,6 +111,6 @@ def biblebot_ui():
             st.markdown(f"**👋 You:** {last_user}")
             st.markdown(f"**🤖 BibleBot:** {last_bot}")
 
-    # © Credit
+    # © Credit - Always show
     st.markdown("---")
-    st.caption("Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐")
+    st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
