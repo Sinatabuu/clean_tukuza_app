@@ -184,7 +184,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     if user_lang != "en":
         submit_text = GoogleTranslator(source='en', target=user_lang).translate(submit_text)
 
-    submitted = st.form_submit_button(submit_text)
+        submitted = st.form_submit_button(submit_text)
 
     if submitted:
         try:
