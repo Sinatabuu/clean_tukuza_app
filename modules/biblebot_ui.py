@@ -29,7 +29,7 @@ def biblebot_ui():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # 📥 Chat Input Field
+    # 📬 Chat Input Field
     user_input = st.chat_input("Type your question here:")
 
     # 📝 Handle typed input
@@ -65,7 +65,7 @@ def biblebot_ui():
             reply_container.markdown(reply)
             st.session_state.messages.append({"role": "assistant", "content": reply})
 
-            # 💾 Save chat (simple local file)
+            # 📂 Save chat (simple local file)
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             file_path = f"chat_{timestamp}.txt"
             with open(file_path, "w", encoding="utf-8") as f:
@@ -75,19 +75,10 @@ def biblebot_ui():
                     f.write(f"{role.upper()}:\n{content}\n\n")
 
             with open(file_path, "rb") as f:
-                st.download_button("📥 Download Chat", f, file_name=file_path, mime="text/plain")
+                st.download_button("📅 Download Chat", f, file_name=file_path, mime="text/plain")
 
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
-
-    # Display last chat only (optional)
-    if st.session_state.messages:
-        last_user = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "user"), "")
-        last_bot = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "assistant"), "")
-        if last_user and last_bot:
-            st.markdown("### 💬 Chat Summary")
-            st.markdown(f"**👋 You:** {last_user}")
-            st.markdown(f"**🤖 BibleBot:** {last_bot}")
 
     # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but we can still add polish)
     st.markdown("""
