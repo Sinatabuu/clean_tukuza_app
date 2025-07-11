@@ -15,9 +15,8 @@ def biblebot_ui():
 
     client = OpenAI(api_key=api_key)
 
-    # ✅ Title and model selector
+    # ✅ Title
     st.subheader("📖 BibleBot (Multilingual)")
-    model_choice = st.selectbox("🤖 Choose Model", ["gpt-3.5-turbo", "gpt-4"])
 
     # ✅ Clear Chat Option
     if st.button("🗑️ Clear Chat History"):
@@ -26,12 +25,11 @@ def biblebot_ui():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # 🎙️ Input Field with Mic
-    col1, col2 = st.columns([9, 1])
-    with col1:
-        user_input = st.text_input("Type or speak your question:", key="biblebot_input")
-    with col2:
-        mic_clicked = st.button("🎙️", key="biblebot_mic")
+    # 🎤 Mic Button beside Chat Input
+    mic_clicked = st.button("🎤", key="biblebot_mic")
+
+    # 🖊️ Chat input field with enter/send icon
+    user_input = st.chat_input("Type or speak your question:")
 
     # 🎤 Handle voice input
     if mic_clicked:
@@ -45,7 +43,7 @@ def biblebot_ui():
                 st.warning("⚠️ Could not understand.")
                 return
             except Exception as e:
-                st.error(f"🎙️ Error: {e}")
+                st.error(f"🎤 Error: {e}")
                 return
 
     # 📝 Handle typed or voice input
@@ -60,7 +58,7 @@ def biblebot_ui():
         # Send to OpenAI
         try:
             stream = client.chat.completions.create(
-                model=model_choice,
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": input_en}],
                 stream=True,
             )
@@ -91,5 +89,9 @@ def biblebot_ui():
         last_bot = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "assistant"), "")
         if last_user and last_bot:
             st.markdown("### 💬 Chat Summary")
-            st.markdown(f"**🙋 You:** {last_user}")
+            st.markdown(f"**👋 You:** {last_user}")
             st.markdown(f"**🤖 BibleBot:** {last_bot}")
+
+    # © Credit
+    st.markdown("---")
+    st.caption("Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐")
