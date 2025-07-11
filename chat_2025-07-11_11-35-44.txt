@@ -1,0 +1,6 @@
+USER:
+jesus
+
+ASSISTANT:
+Jesús es una figura central en el cristianismo, que los cristianos creen que es el Hijo de Dios y el Salvador de la Humanidad. Nació en Belén, en la moderna Israel, en el primer siglo DC y su vida y enseñanzas se registran en el Nuevo Testamento de la Biblia. Los cristianos creen que Jesús fue crucificado, murió y resucitó, y que su muerte y resurrección ofrecen salvación y perdón de los pecados a quienes creen en él. Las enseñanzas de Jesús enfatizan el amor, el perdón y la compasión por los demás.
+

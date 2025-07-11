@@ -5,7 +5,6 @@ from langdetect import detect
 from deep_translator import GoogleTranslator
 import speech_recognition as sr
 import os
-import streamlit.components.v1 as components
 from datetime import datetime
 
 
@@ -17,21 +16,6 @@ def biblebot_ui():
         return
 
     client = OpenAI(api_key=api_key)
-
-    # ✅ Detect Mobile (Responsive)
-    if "is_mobile" not in st.session_state:
-        components.html(
-            """
-            <script>
-                const isMobile = window.innerWidth < 768;
-                const streamlitDoc = window.parent.document;
-                streamlitDoc.body.setAttribute('data-mobile', isMobile);
-                window.parent.postMessage({ type: 'streamlit:setComponentValue', value: isMobile }, '*');
-            </script>
-            """,
-            height=0,
-        )
-        st.session_state.is_mobile = False  # default fallback
 
     # 🌐 Language switcher
     st.session_state.lang = st.selectbox("🌍 Select language", ["en", "sw", "fr", "de", "es"], index=0)
@@ -47,28 +31,7 @@ def biblebot_ui():
         st.session_state.messages = []
 
     # 📥 Chat Input Field + Mic Button (desktop only)
-    col1, col2 = st.columns([9, 1])
-    with col1:
-        user_input = st.chat_input("Type or speak your question:")
-    with col2:
-        mic_clicked = False
-        if not st.session_state.get("is_mobile", False):
-            mic_clicked = st.button("🎤", key="biblebot_mic")
-
-    # 🎤 Handle voice input (desktop only)
-    if mic_clicked:
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
-            try:
-                audio = recognizer.listen(source, timeout=5)
-                voice_text = recognizer.recognize_google(audio)
-                user_input = voice_text
-            except sr.UnknownValueError:
-                st.warning("⚠️ Could not understand.")
-                return
-            except Exception as e:
-                st.error(f"🎤 Error: {e}")
-                return
+    user_input = st.chat_input("Type your question here:")
 
     # 📝 Handle typed or voice input
     if user_input:
@@ -127,9 +90,17 @@ def biblebot_ui():
             st.markdown(f"**👋 You:** {last_user}")
             st.markdown(f"**🤖 BibleBot:** {last_bot}")
 
-    # 📱 Mobile Layout Tweaks
-    if st.session_state.get("is_mobile", False):
-        st.markdown("<style>.stButton, .stTextInput, .stDownloadButton { font-size: 90% !important; }</style>", unsafe_allow_html=True)
+    # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but we can still add polish)
+    st.markdown("""
+        <style>
+        .stTextInput input, .stChatInput input {
+            font-size: 1rem !important;
+        }
+        .stDownloadButton button {
+            font-size: 0.9rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     # © Credit - Always show
     st.markdown("---")
