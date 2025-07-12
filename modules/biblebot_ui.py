@@ -6,7 +6,6 @@ from deep_translator import GoogleTranslator
 import os
 from datetime import datetime
 
-
 def biblebot_ui():
     # ✅ Setup OpenAI Client
     api_key = os.getenv("OPENAI_API_KEY")
@@ -48,23 +47,22 @@ def biblebot_ui():
                 stream=True,
             )
 
+            full_english_reply = ""
+            for chunk in stream:
+                full_english_reply += chunk.choices[0].delta.content or ""
+
+            final_display_reply = full_english_reply
+
+            if selected_lang != 'en':
+                final_display_reply = GoogleTranslator(source='en', target=selected_lang).translate(full_english_reply)
+
             with st.chat_message("user"):
                 st.markdown(user_input)
 
             with st.chat_message("assistant"):
-                reply_container = st.empty()
-                reply = ""
-                for chunk in stream:
-                    part = chunk.choices[0].delta.content or ""
-                    reply += part
-                    reply_container.markdown(reply)
+                st.markdown(final_display_reply)
 
-            # Translate after stream ends
-            if selected_lang != 'en':
-                reply = GoogleTranslator(source='en', target=selected_lang).translate(reply)
-                reply_container.markdown(reply)
-
-            st.session_state.messages.append({"role": "assistant", "content": reply})
+            st.session_state.messages.append({"role": "assistant", "content": final_display_reply})
 
             # 📂 Save chat (simple local file)
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -81,7 +79,7 @@ def biblebot_ui():
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
 
-    # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but we can still add polish)
+    # 📱 Mobile Layout Tweaks
     st.markdown("""
         <style>
         .stTextInput input, .stChatInput input {
