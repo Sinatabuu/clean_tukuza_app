@@ -17,9 +17,8 @@ def biblebot_ui():
     client = OpenAI(api_key=api_key)
 
     # 🌐 Language switcher
+    # Place language selector and title before displaying messages
     st.session_state.lang = st.selectbox("🌍 Select language", ["en", "sw", "fr", "de", "es"], index=0)
-
-    # ✅ Title
     st.subheader("📖 BibleBot (Multilingual)")
 
     # ✅ Initialize chat history if not present
@@ -31,25 +30,24 @@ def biblebot_ui():
         st.session_state.messages = []
         st.experimental_rerun() # Force rerun to clear display immediately
 
-    # 🚀 Display all chat messages from history FIRST (before processing new input)
-    # This loop is now the ONLY place messages are displayed.
+    # 🚀 Display all chat messages from history on app rerun
+    # This loop is the ONLY place where messages should be displayed
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # 📬 Chat Input Field
-    user_input = st.chat_input("Type your question here:")
-
-    # 📝 Handle typed input (only process and append, then rerun)
-    if user_input:
-        # Append user message immediately to session state
-        st.session_state.messages.append({"role": "user", "content": user_input})
+    # 📬 Accept user input
+    # Use the walrus operator (:=) for concise input handling
+    if prompt := st.chat_input("Type your question here:"):
+        # Add user message to chat history FIRST
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
         # Translate user input if not in English
         selected_lang = st.session_state.lang
-        input_en = GoogleTranslator(source='auto', target='en').translate(user_input) if selected_lang != 'en' else user_input
+        # Use 'prompt' directly here, as it holds the original user input
+        input_en = GoogleTranslator(source='auto', target='en').translate(prompt) if selected_lang != 'en' else prompt
 
-        # Send to OpenAI
+        # Generate assistant response
         try:
             stream = client.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -58,7 +56,7 @@ def biblebot_ui():
             )
 
             full_english_reply = ""
-            # Collect the full English response from the stream
+            # Collect the full English response from the stream without displaying yet
             for chunk in stream:
                 full_english_reply += chunk.choices[0].delta.content or ""
 
@@ -68,10 +66,10 @@ def biblebot_ui():
             if selected_lang != 'en':
                 final_display_reply = GoogleTranslator(source='en', target=selected_lang).translate(full_english_reply)
             
-            # Append assistant message to session state
+            # Add assistant message to chat history
             st.session_state.messages.append({"role": "assistant", "content": final_display_reply})
 
-            # 📂 Save chat (simple local file)
+            # 📂 Save chat (simple local file) - This part will also trigger a rerun
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             file_path = f"chat_{timestamp}.txt"
             with open(file_path, "w", encoding="utf-8") as f:
@@ -80,17 +78,17 @@ def biblebot_ui():
                     content = msg['content']
                     f.write(f"{role.upper()}:\n{content}\n\n")
 
-            # This download button will also trigger a rerun, which is fine
             with open(file_path, "rb") as f:
                 st.download_button("📅 Download Chat", f, file_name=file_path, mime="text/plain")
 
+            # Force a rerun to update the display with the new messages in the history loop
+            st.experimental_rerun()
+
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
-        
-        # IMPORTANT: Force a rerun AFTER processing the input
-        # This will make Streamlit redraw the entire page from scratch,
-        # including the updated st.session_state.messages history.
-        st.experimental_rerun()
+            # If an error occurs, still append to history so the error is not lost
+            st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
+            st.experimental_rerun()
 
 
     # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but we can still add polish)
