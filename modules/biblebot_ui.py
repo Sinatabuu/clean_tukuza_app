@@ -6,6 +6,7 @@ from deep_translator import GoogleTranslator
 import os
 from datetime import datetime
 
+
 def biblebot_ui():
     # ✅ Setup OpenAI Client
     api_key = os.getenv("OPENAI_API_KEY")
@@ -21,21 +22,26 @@ def biblebot_ui():
     # ✅ Title
     st.subheader("📖 BibleBot (Multilingual)")
 
+    # ✅ Initialize chat history if not present
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
     # ✅ Clear Chat Option
     if st.button("🗑️ Clear Chat History"):
         st.session_state.messages = []
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+        # To ensure the clear takes effect immediately and redraws,
+        # you might want to rerun the app, but typically Streamlit handles this.
+        st.experimental_rerun() # Added for immediate clear effect
 
     # 📬 Chat Input Field
     user_input = st.chat_input("Type your question here:")
 
-    # 📝 Handle typed input
+    # 📝 Handle typed input (only process and append, don't display yet)
     if user_input:
+        # Append user message immediately
         st.session_state.messages.append({"role": "user", "content": user_input})
 
-        # Translate if not in English
+        # Translate user input if not in English
         selected_lang = st.session_state.lang
         input_en = GoogleTranslator(source='auto', target='en').translate(user_input) if selected_lang != 'en' else user_input
 
@@ -48,20 +54,17 @@ def biblebot_ui():
             )
 
             full_english_reply = ""
+            # Collect the full English response first
             for chunk in stream:
                 full_english_reply += chunk.choices[0].delta.content or ""
 
             final_display_reply = full_english_reply
 
+            # Translate after getting full response, if needed
             if selected_lang != 'en':
                 final_display_reply = GoogleTranslator(source='en', target=selected_lang).translate(full_english_reply)
-
-            with st.chat_message("user"):
-                st.markdown(user_input)
-
-            with st.chat_message("assistant"):
-                st.markdown(final_display_reply)
-
+            
+            # Append assistant message
             st.session_state.messages.append({"role": "assistant", "content": final_display_reply})
 
             # 📂 Save chat (simple local file)
@@ -73,13 +76,24 @@ def biblebot_ui():
                     content = msg['content']
                     f.write(f"{role.upper()}:\n{content}\n\n")
 
+            # This download button will also trigger a rerun, which is fine
             with open(file_path, "rb") as f:
                 st.download_button("📅 Download Chat", f, file_name=file_path, mime="text/plain")
 
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
+        
+        # After processing, rerun to display updated messages properly
+        st.experimental_rerun()
 
-    # 📱 Mobile Layout Tweaks
+
+    # 🚀 Display all chat messages from history (this is the ONLY place messages should be displayed)
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+
+    # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but we can still add polish)
     st.markdown("""
         <style>
         .stTextInput input, .stChatInput input {
