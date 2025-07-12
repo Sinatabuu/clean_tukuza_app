@@ -16,8 +16,7 @@ def biblebot_ui():
 
     client = OpenAI(api_key=api_key)
 
-    # 🌐 Language switcher
-    # Place language selector and title before displaying messages
+    # 🌐 Language switcher and Title (place them at the top of the UI)
     st.session_state.lang = st.selectbox("🌍 Select language", ["en", "sw", "fr", "de", "es"], index=0)
     st.subheader("📖 BibleBot (Multilingual)")
 
@@ -31,23 +30,22 @@ def biblebot_ui():
         st.experimental_rerun() # Force rerun to clear display immediately
 
     # 🚀 Display all chat messages from history on app rerun
-    # This loop is the ONLY place where messages should be displayed
+    # This loop is the ONLY place where messages should be displayed.
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # 📬 Accept user input
-    # Use the walrus operator (:=) for concise input handling
+    # 📬 Accept user input using st.chat_input
+    # The walrus operator (:=) assigns the input to 'prompt' if not empty
     if prompt := st.chat_input("Type your question here:"):
-        # Add user message to chat history FIRST
+        # 1. Add user message to chat history FIRST
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        # Translate user input if not in English
+        # 2. Translate user input if not in English
         selected_lang = st.session_state.lang
-        # Use 'prompt' directly here, as it holds the original user input
         input_en = GoogleTranslator(source='auto', target='en').translate(prompt) if selected_lang != 'en' else prompt
 
-        # Generate assistant response
+        # 3. Generate assistant response
         try:
             stream = client.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -56,20 +54,21 @@ def biblebot_ui():
             )
 
             full_english_reply = ""
-            # Collect the full English response from the stream without displaying yet
+            # Collect the full English response from the stream without displaying it yet
             for chunk in stream:
                 full_english_reply += chunk.choices[0].delta.content or ""
 
             final_display_reply = full_english_reply
 
-            # Translate after getting full response, if needed
+            # Translate after collecting the full response, if needed
             if selected_lang != 'en':
                 final_display_reply = GoogleTranslator(source='en', target=selected_lang).translate(full_english_reply)
             
-            # Add assistant message to chat history
+            # 4. Add assistant message to chat history
             st.session_state.messages.append({"role": "assistant", "content": final_display_reply})
 
-            # 📂 Save chat (simple local file) - This part will also trigger a rerun
+            # 📂 Save chat (simple local file) and provide download button
+            # This action will also trigger a rerun, which is fine
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             file_path = f"chat_{timestamp}.txt"
             with open(file_path, "w", encoding="utf-8") as f:
@@ -81,17 +80,17 @@ def biblebot_ui():
             with open(file_path, "rb") as f:
                 st.download_button("📅 Download Chat", f, file_name=file_path, mime="text/plain")
 
-            # Force a rerun to update the display with the new messages in the history loop
+            # 5. Force a rerun to update the display with the new messages in the history loop
             st.experimental_rerun()
 
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
-            # If an error occurs, still append to history so the error is not lost
+            # Append error message to history so it's recorded
             st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
             st.experimental_rerun()
 
 
-    # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but we can still add polish)
+    # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but adding polish)
     st.markdown("""
         <style>
         .stTextInput input, .stChatInput input {
@@ -103,6 +102,6 @@ def biblebot_ui():
         </style>
     """, unsafe_allow_html=True)
 
-    # © Credit - Always show
+    # © Credit - Always show at the bottom
     st.markdown("---")
     st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
