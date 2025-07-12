@@ -213,6 +213,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         submitted = st.form_submit_button(submit_text)
 
 
+
     if submitted:
         try:
             input_data = np.array(responses).reshape(1, -1)
