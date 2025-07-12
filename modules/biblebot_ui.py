@@ -1,7 +1,7 @@
 # 📦 MODULE: biblebot_ui.py
 import streamlit as st
 from openai import OpenAI
-from langdetect import detect
+from langdetect import detect # Keep this import for 'detect' function
 from deep_translator import GoogleTranslator
 import os
 from datetime import datetime
@@ -17,18 +17,19 @@ def biblebot_ui():
     client = OpenAI(api_key=api_key)
 
     # 🌐 Language switcher and Title (place them at the top of the UI)
-    st.session_state.lang = st.selectbox("🌍 Select language", ["en", "sw", "fr", "de", "es"], index=0)
+    # ADDED UNIQUE KEY
+    st.session_state.lang = st.selectbox("🌍 Select language", ["en", "sw", "fr", "de", "es"], index=0, key="biblebot_lang_select")
     st.subheader("📖 BibleBot (Multilingual)")
 
-    # ✅ Initialize chat history if not present
-    if st.button("🗑️ Clear Chat History"):
+    # ✅ Clear Chat Option - CONSOLIDATED TO ONE BUTTON WITH UNIQUE KEY
+    if st.button("🗑️ Clear Chat History", key="clear_chat_button"): # Added unique key and consolidated
         st.session_state.messages = []
-        st.rerun() # Changed to st.rerun()
+        st.rerun() # Changed from st.experimental_rerun()
 
-    # ✅ Clear Chat Option
-    if st.button("🗑️ Clear Chat History"):
+    # ✅ Initialize chat history if not present
+    if "messages" not in st.session_state:
         st.session_state.messages = []
-        st.experimental_rerun() # Force rerun to clear display immediately
+
 
     # 🚀 Display all chat messages from history on app rerun
     # This loop is the ONLY place where messages should be displayed.
@@ -37,8 +38,8 @@ def biblebot_ui():
             st.markdown(message["content"])
 
     # 📬 Accept user input using st.chat_input
-    # The walrus operator (:=) assigns the input to 'prompt' if not empty
-    if prompt := st.chat_input("Type your question here:"):
+    # ADDED UNIQUE KEY
+    if prompt := st.chat_input("Type your question here:", key="biblebot_user_input"):
         # 1. Add user message to chat history FIRST
         st.session_state.messages.append({"role": "user", "content": prompt})
 
@@ -78,17 +79,18 @@ def biblebot_ui():
                     content = msg['content']
                     f.write(f"{role.upper()}:\n{content}\n\n")
 
+            # ADDED UNIQUE KEY
             with open(file_path, "rb") as f:
-                st.download_button("📅 Download Chat", f, file_name=file_path, mime="text/plain")
+                st.download_button("📅 Download Chat", f, file_name=file_path, mime="text/plain", key="download_chat_button")
 
             # 5. Force a rerun to update the display with the new messages in the history loop
-            st.experimental_rerun()
+            st.rerun() # Changed from st.experimental_rerun()
 
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
             # Append error message to history so it's recorded
             st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
-            st.experimental_rerun()
+            st.rerun() # Changed from st.experimental_rerun()
 
 
     # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but adding polish)

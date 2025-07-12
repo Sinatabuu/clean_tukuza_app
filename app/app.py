@@ -9,9 +9,9 @@ import queue
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from modules.biblebot_ui import biblebot_ui
+from modules.biblebot_ui import biblebot_ui # Ensure this file is also updated!
 
-# 🌍 Translation Functions
+# 🌍 Translation Functions (Imports are inside for lazy loading, which is fine)
 def translate_user_input(text, target_lang="en"):
     from langdetect import detect
     from deep_translator import GoogleTranslator
@@ -44,13 +44,14 @@ st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout
 if "user_profile" not in st.session_state:
     st.subheader("👤 Create Your Discipleship Profile")
 
-    name = st.text_input("Your Name")
-    age = st.number_input("Your Age", min_value=10, max_value=100, step=1)
+    # --- ADDED UNIQUE KEYS TO PROFILE WIDGETS ---
+    name = st.text_input("Your Name", key="profile_name_input")
+    age = st.number_input("Your Age", min_value=10, max_value=100, step=1, key="profile_age_input")
     stage = st.selectbox("Your Faith Stage", [
         "New Believer", "Growing Disciple", "Ministry Ready", "Faith Leader"
-    ])
+    ], key="profile_stage_select")
 
-    if st.button("✅ Save Profile"):
+    if st.button("✅ Save Profile", key="save_profile_button"): # Added key here
         st.session_state.user_profile = {
             "name": name,
             "age": age,
@@ -73,10 +74,10 @@ tool = st.selectbox("🛠️ Select a Tool", [
     "🔖 Verse Classifier",
     "🌅 Daily Verse",
     "🧪 Spiritual Gifts Assessment"
-], index=0)  # Default to BibleBot
+], index=0, key="tool_selector") # Added key to selectbox
 
 # ---------------------------
-# 1. BibleBot
+# 1. BibleBot (Ensure biblebot_ui.py is updated separately!)
 # ---------------------------
 if tool == "📖 BibleBot":
     biblebot_ui()
@@ -90,13 +91,18 @@ elif tool == "🔖 Verse Classifier":
     model_path = os.path.join("models", "model.pkl")  # ✅ correct model
     vectorizer_path = os.path.join("models", "vectorizer.pkl")
 
+    # Ensure models exist before loading
+    if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
+        st.error("Model files not found. Please ensure 'model.pkl' and 'vectorizer.pkl' are in the 'models' directory.")
+        return # Exit to prevent further errors if models are missing
+        
     model = joblib.load(model_path)
     vectorizer = joblib.load(vectorizer_path)
 
     st.write("🧠 Model can detect these topics:", model.classes_)
 
-    verse = st.text_area("Paste a Bible verse here:")
-    if st.button("Classify"):
+    verse = st.text_area("Paste a Bible verse here:", key="verse_classifier_input") # Added key
+    if st.button("Classify", key="classify_button"): # Added key here
         if verse.strip() == "":
             st.warning("Please enter a verse.")
         else:
@@ -120,16 +126,20 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     from langdetect import detect
 
     model_path = os.path.join("models", "gift_model.pkl")
+    if not os.path.exists(model_path):
+        st.error("Spiritual gifts model file not found. Please ensure 'gift_model.pkl' is in the 'models' directory.")
+        return # Exit if model is missing
+
     model = joblib.load(model_path)
 
     st.subheader("🧪 Spiritual Gifts Assessment")
 
-    sample_input = st.text_input("🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
+    sample_input = st.text_input("🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):", key="sample_lang_input") # Added key
 
     if sample_input:
         try:
             user_lang = detect(sample_input)
-        except:
+        except: # Catching all exceptions for language detection issues
             user_lang = "en"
     else:
         user_lang = "en"
@@ -187,14 +197,15 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         scale_instruction = GoogleTranslator(source='en', target=user_lang).translate(scale_instruction)
     st.caption(scale_instruction)
 
-    with st.form("gift_assessment_form"):
-        responses = [st.slider(f"{i+1}. {q}", 1, 5, 3) for i, q in enumerate(questions)]
+    with st.form("gift_assessment_form", clear_on_submit=True): # Added clear_on_submit for forms
+        # --- ADDED UNIQUE KEYS TO SLIDERS ---
+        responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_question_slider_{i}") for i, q in enumerate(questions)]
 
         submit_text = "🎯 Discover My Spiritual Gift"
         if user_lang != "en":
             submit_text = GoogleTranslator(source='en', target=user_lang).translate(submit_text)
 
-        submitted = st.form_submit_button(submit_text)
+        submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button") # Added key here
 
     if submitted:
         try:
@@ -217,3 +228,9 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
         except Exception as e:
             st.error(f"⚠️ Error during prediction: {e}")
+
+# ---------------------------
+# © Credit - Always show
+# ---------------------------
+st.markdown("---")
+st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
