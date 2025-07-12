@@ -21,8 +21,9 @@ def biblebot_ui():
     st.subheader("📖 BibleBot (Multilingual)")
 
     # ✅ Initialize chat history if not present
-    if "messages" not in st.session_state:
+    if st.button("🗑️ Clear Chat History"):
         st.session_state.messages = []
+        st.rerun() # Changed to st.rerun()
 
     # ✅ Clear Chat Option
     if st.button("🗑️ Clear Chat History"):
