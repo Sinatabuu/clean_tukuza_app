@@ -3,9 +3,9 @@ from openai import OpenAI
 import os
 import joblib
 import numpy as np
-from streamlit_webrtc import webrtc_streamer
-import av
-import queue
+from streamlit_webrtc import webrtc_streamer # Assuming this is used elsewhere if not directly in your current snippet
+import av # Assuming this is used elsewhere if not directly in your current snippet
+import queue # Assuming this is used elsewhere if not directly in your current snippet
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -27,7 +27,7 @@ def translate_bot_response(text, target_lang):
         return GoogleTranslator(source='en', target=target_lang).translate(text)
     return text
 
-# 🎤 Voice Input Setup
+# 🎤 Voice Input Setup (only if you intend to use voice input)
 audio_queue = queue.Queue()
 
 class AudioProcessor:
@@ -59,6 +59,8 @@ if "user_profile" not in st.session_state:
             "history": []
         }
         st.success("Profile created for this session!")
+        # It's good practice to rerun after state changes that affect initial rendering
+        st.rerun()
 
 elif "user_profile" in st.session_state:
     profile = st.session_state.user_profile
@@ -88,13 +90,13 @@ if tool == "📖 BibleBot":
 elif tool == "🔖 Verse Classifier":
     st.subheader("Classify a Bible Verse")
 
-    model_path = os.path.join("models", "model.pkl")  # ✅ correct model
+    model_path = os.path.join("models", "model.pkl")
     vectorizer_path = os.path.join("models", "vectorizer.pkl")
 
-    # Ensure models exist before loading
+    # --- CHANGED 'return' TO 'st.stop()' ---
     if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
         st.error("Model files not found. Please ensure 'model.pkl' and 'vectorizer.pkl' are in the 'models' directory.")
-        return # Exit to prevent further errors if models are missing
+        st.stop() # Stops execution here
         
     model = joblib.load(model_path)
     vectorizer = joblib.load(vectorizer_path)
@@ -126,9 +128,10 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     from langdetect import detect
 
     model_path = os.path.join("models", "gift_model.pkl")
+    # --- CHANGED 'return' TO 'st.stop()' ---
     if not os.path.exists(model_path):
         st.error("Spiritual gifts model file not found. Please ensure 'gift_model.pkl' is in the 'models' directory.")
-        return # Exit if model is missing
+        st.stop() # Stops execution here
 
     model = joblib.load(model_path)
 
