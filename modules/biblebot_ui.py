@@ -29,16 +29,20 @@ def biblebot_ui():
     # ✅ Clear Chat Option
     if st.button("🗑️ Clear Chat History"):
         st.session_state.messages = []
-        # To ensure the clear takes effect immediately and redraws,
-        # you might want to rerun the app, but typically Streamlit handles this.
-        st.experimental_rerun() # Added for immediate clear effect
+        st.experimental_rerun() # Force rerun to clear display immediately
+
+    # 🚀 Display all chat messages from history FIRST (before processing new input)
+    # This loop is now the ONLY place messages are displayed.
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
     # 📬 Chat Input Field
     user_input = st.chat_input("Type your question here:")
 
-    # 📝 Handle typed input (only process and append, don't display yet)
+    # 📝 Handle typed input (only process and append, then rerun)
     if user_input:
-        # Append user message immediately
+        # Append user message immediately to session state
         st.session_state.messages.append({"role": "user", "content": user_input})
 
         # Translate user input if not in English
@@ -54,7 +58,7 @@ def biblebot_ui():
             )
 
             full_english_reply = ""
-            # Collect the full English response first
+            # Collect the full English response from the stream
             for chunk in stream:
                 full_english_reply += chunk.choices[0].delta.content or ""
 
@@ -64,7 +68,7 @@ def biblebot_ui():
             if selected_lang != 'en':
                 final_display_reply = GoogleTranslator(source='en', target=selected_lang).translate(full_english_reply)
             
-            # Append assistant message
+            # Append assistant message to session state
             st.session_state.messages.append({"role": "assistant", "content": final_display_reply})
 
             # 📂 Save chat (simple local file)
@@ -83,14 +87,10 @@ def biblebot_ui():
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
         
-        # After processing, rerun to display updated messages properly
+        # IMPORTANT: Force a rerun AFTER processing the input
+        # This will make Streamlit redraw the entire page from scratch,
+        # including the updated st.session_state.messages history.
         st.experimental_rerun()
-
-
-    # 🚀 Display all chat messages from history (this is the ONLY place messages should be displayed)
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
 
 
     # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but we can still add polish)
