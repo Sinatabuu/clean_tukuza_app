@@ -1,0 +1,6 @@
+USER:
+jesus
+
+ASSISTANT:
+Jesus is a central figure in Christianity, believed to be the son of God and the savior of humanity. Christians believe that Jesus was born of a virgin, performed miracles, taught about love and forgiveness, and ultimately died on the cross to redeem humanity from sin. His resurrection three days after his death is celebrated as Easter, and is seen as a sign of hope and new life. Jesus' teachings and life story are recorded in the New Testament of the Bible.
+
