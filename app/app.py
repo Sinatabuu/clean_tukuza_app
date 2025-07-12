@@ -127,7 +127,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
 
     # Get supported language codes like 'en', 'sw', 'fr', etc.
-    SUPPORTED_LANG_CODES = list(GoogleTranslator.get_supported_languages(as_dict=True).values())
+    SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
 
     if sample_input:
         try:
