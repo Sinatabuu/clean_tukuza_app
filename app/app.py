@@ -235,5 +235,5 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 # ---------------------------
 # © Credit - Always show
 # ---------------------------
-st.markdown("---")
-st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
+#st.markdown("---")
+#st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
