@@ -193,16 +193,16 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         "Leadership": "Apostle"
     }
 
-    if user_lang != "en":
+if user_lang != "en":
         try:
             questions = [GoogleTranslator(source="en", target=user_lang).translate(q) for q in questions_en]
         except Exception:
             st.error("Translation failed. Showing questions in English.")
             questions = questions_en
-    else:
+else:
         questions = questions_en
 
-    scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
+scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
     # Detect user language and translate if needed
 if user_lang != "en":
     try:
