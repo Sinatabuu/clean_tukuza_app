@@ -121,17 +121,24 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     # Display previous assessment
     if "gift_results" in st.session_state.user_profile:
         gr = st.session_state.user_profile["gift_results"]
-    
+
     st.markdown("### 💡 Your Last Spiritual Gift Assessment")
     st.info(f"""
-    - 🧠 Primary Gift: **{gr['primary']}** ({gr['primary_role']})  
-    - 🌟 Secondary Gift: **{gr['secondary']}** ({gr['secondary_role']})
+    - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
+    - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
     """)
-    
-    st.markdown("### 🚀 Suggested Ministry Pathways")
-    for i, role in enumerate(gr["ministries"], 1):
-        st.markdown(f"- {i}. **{role}**")
 
+    # Only display ministries if they exist
+    if gr.get("ministries"):
+        st.markdown("### 🚀 Suggested Ministry Pathways")
+        for i, role in enumerate(gr["ministries"], 1):
+            st.markdown(f"- {i}. **{role}**")
+    else:
+        st.info("No ministry recommendations available yet. Please take the assessment.")
+
+if st.button("🧹 Clear Previous Gift Assessment"):
+    st.session_state.user_profile.pop("gift_results", None)
+    st.experimental_rerun()
 
     st.subheader("🧪 Spiritual Gifts Assessment")
 
