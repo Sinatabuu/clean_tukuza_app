@@ -126,6 +126,11 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
     st.subheader("🧪 Spiritual Gifts Assessment")
 
+    # Display saved results if available
+    if "gift_results" in st.session_state.user_profile:
+        gr = st.session_state.user_profile["gift_results"]
+        st.info(f"💡 Previous Results:\n\n- Primary Gift: **{gr['primary']}** ({gr['primary_role']})\n- Secondary Gift: **{gr['secondary']}** ({gr['secondary_role']})")
+
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
 
     SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
