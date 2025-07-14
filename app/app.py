@@ -10,11 +10,11 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
+from langdetect import detect
+from deep_translator import GoogleTranslator
 
 # 🌍 Translation Functions
 def translate_user_input(text, target_lang="en"):
-    from langdetect import detect
-    from deep_translator import GoogleTranslator
     detected_lang = detect(text)
     if detected_lang != 'en':
         translated = GoogleTranslator(source='auto', target='en').translate(text)
