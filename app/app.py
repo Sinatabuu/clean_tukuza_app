@@ -114,6 +114,10 @@ elif tool == "🌅 Daily Verse":
 # 4. Spiritual Gifts Assessment
 # ---------------------------
 elif tool == "🧪 Spiritual Gifts Assessment":
+    if "user_profile" not in st.session_state:
+        st.warning("⚠️ Please create your discipleship profile before continuing.")
+        st.stop()
+
     from deep_translator import GoogleTranslator
     from langdetect import detect
 
