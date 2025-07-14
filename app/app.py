@@ -121,11 +121,17 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     # Display previous assessment
     if "gift_results" in st.session_state.user_profile:
         gr = st.session_state.user_profile["gift_results"]
-        st.markdown("### 💡 Your Last Spiritual Gift Assessment")
-        st.info(f"""
-        - 🧠 Primary Gift: **{gr['primary']}** ({gr['primary_role']})  
-        - 🌟 Secondary Gift: **{gr['secondary']}** ({gr['secondary_role']})
-        """)
+    
+    st.markdown("### 💡 Your Last Spiritual Gift Assessment")
+    st.info(f"""
+    - 🧠 Primary Gift: **{gr['primary']}** ({gr['primary_role']})  
+    - 🌟 Secondary Gift: **{gr['secondary']}** ({gr['secondary_role']})
+    """)
+    
+    st.markdown("### 🚀 Suggested Ministry Pathways")
+    for i, role in enumerate(gr["ministries"], 1):
+        st.markdown(f"- {i}. **{role}**")
+
 
     st.subheader("🧪 Spiritual Gifts Assessment")
 
