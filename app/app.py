@@ -119,22 +119,21 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     model = joblib.load(model_path)
 
     # Display previous assessment
-    if "gift_results" in st.session_state.user_profile:
-        gr = st.session_state.user_profile["gift_results"]
-
+    # ✅ Display saved results if available
+if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
+    gr = st.session_state.user_profile["gift_results"]
+    
     st.markdown("### 💡 Your Last Spiritual Gift Assessment")
     st.info(f"""
     - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
     - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
     """)
+    
+    # Optionally also display ministries
+    st.markdown("### 🚀 Suggested Ministry Pathways")
+    for i, role in enumerate(gr.get("ministries", []), 1):
+        st.markdown(f"- {i}. **{role}**")
 
-    # Only display ministries if they exist
-    if gr.get("ministries"):
-        st.markdown("### 🚀 Suggested Ministry Pathways")
-        for i, role in enumerate(gr["ministries"], 1):
-            st.markdown(f"- {i}. **{role}**")
-    else:
-        st.info("No ministry recommendations available yet. Please take the assessment.")
 
 # ✅ Only show the reset button if user_profile exists
 if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
