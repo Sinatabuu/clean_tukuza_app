@@ -232,20 +232,40 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
             primary_role = gift_to_fivefold.get(primary, "Undetermined")
             secondary_role = gift_to_fivefold.get(secondary, "Undetermined")
+            # 🧩 Recommend ministries
+gift_ministry_map = {
+    "Teaching": ["Bible Study Leader", "Discipleship Coach", "Apologist"],
+    "Prophecy": ["Intercessor", "Prophetic Mentor", "Watchman"],
+    "Evangelism": ["Street Evangelist", "Mission Worker", "Church Planter"],
+    "Service": ["Church Operations", "Setup Crew", "Admin Support"],
+    "Mercy": ["Counselor", "Hospital Chaplain", "Comfort Ministry"],
+    "Giving": ["Donor Relations", "Fundraising Coordinator", "Business-as-Mission"],
+    "Leadership": ["Ministry Director", "Visionary Leader", "Team Builder"]
+}
 
-            result_msg = f"🧠 Primary Spiritual Gift: {primary}"
-            secondary_msg = f"🌟 Secondary Spiritual Gift: {secondary}"
-            role_msg = f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}"
-            verse_msg = "✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11"
+def recommend_ministries(primary, secondary, gift_map):
+    primary_roles = gift_map.get(primary, [])
+    secondary_roles = gift_map.get(secondary, [])
+    combined = list(set(primary_roles + secondary_roles))
+    return combined[:3]
 
-            st.session_state.user_profile["gift_results"] = {
-                "primary": primary,
-                "secondary": secondary,
-                "primary_role": primary_role,
-                "secondary_role": secondary_role
-            }
+ministry_suggestions = recommend_ministries(primary, secondary, gift_ministry_map)
 
-            if user_lang != "en":
+
+result_msg = f"🧠 Primary Spiritual Gift: {primary}"
+secondary_msg = f"🌟 Secondary Spiritual Gift: {secondary}"
+role_msg = f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}"
+verse_msg = "✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11"
+st.session_state.user_profile["gift_results"] = {
+    "primary": primary,
+    "secondary": secondary,
+    "primary_role": primary_role,
+    "secondary_role": secondary_role,
+    "ministries": ministry_suggestions
+}
+
+
+if user_lang != "en":
                 try:
                     result_msg = GoogleTranslator(source="en", target=user_lang).translate(result_msg)
                     secondary_msg = GoogleTranslator(source="en", target=user_lang).translate(secondary_msg)
@@ -254,10 +274,13 @@ elif tool == "🧪 Spiritual Gifts Assessment":
                 except:
                     pass
 
-            st.success(result_msg)
-            st.info(secondary_msg)
-            st.markdown(role_msg)
-            st.markdown(verse_msg)
+st.success(result_msg)
+st.info(secondary_msg)
+st.markdown(role_msg)
+st.markdown(verse_msg)
 
-        except Exception as e:
-            st.error(f"⚠️ Error during prediction: {e}")
+#except Exception as e:
+#st.error(f"⚠️ Error during prediction: {e}")
+st.markdown("### 🚀 Suggested Ministry Pathways")
+for i, role in enumerate(ministry_suggestions, 1):
+    st.markdown(f"- {i}. **{role}**")
