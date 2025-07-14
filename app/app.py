@@ -45,7 +45,6 @@ if "user_profile" not in st.session_state:
     st.subheader("👤 Create Your Discipleship Profile")
 
     name = st.text_input("Your Name")
-    age = st.number_input("Your Age", min_value=10, max_value=100, step=1)
     stage = st.selectbox("Your Faith Stage", [
         "New Believer", "Growing Disciple", "Ministry Ready", "Faith Leader"
     ])
@@ -53,7 +52,6 @@ if "user_profile" not in st.session_state:
     if st.button("✅ Save Profile"):
         st.session_state.user_profile = {
             "name": name,
-            "age": age,
             "stage": stage,
             "history": []
         }
@@ -226,6 +224,13 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             secondary_msg = f"🌟 Secondary Spiritual Gift: {secondary}"
             role_msg = f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}"
             verse_msg = "✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11"
+
+            st.session_state.user_profile["gift_results"] = {
+                "primary": primary,
+                "secondary": secondary,
+                "primary_role": primary_role,
+                "secondary_role": secondary_role
+            }
 
             if user_lang != "en":
                 try:
