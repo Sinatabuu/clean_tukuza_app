@@ -126,7 +126,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
 
-    # Get supported language codes like 'en', 'sw', 'fr', etc.
     SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
 
     if sample_input:
@@ -212,28 +211,34 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
         submitted = st.form_submit_button(submit_text)
 
-
-
     if submitted:
         try:
             input_data = np.array(responses).reshape(1, -1)
-            prediction = model.predict(input_data)[0]
-            role = gift_to_fivefold.get(prediction, "Undetermined")
+            probs = model.predict_proba(input_data)[0]
+            top2_indices = np.argsort(probs)[-2:][::-1]
+            primary = model.classes_[top2_indices[0]]
+            secondary = model.classes_[top2_indices[1]]
 
-            result_msg = f"🧠 Your dominant spiritual gift is: {prediction}"
-            role_msg = f"👑 This aligns with the Fivefold Ministry Role: {role}"
+            primary_role = gift_to_fivefold.get(primary, "Undetermined")
+            secondary_role = gift_to_fivefold.get(secondary, "Undetermined")
+
+            result_msg = f"🧠 Primary Spiritual Gift: {primary}"
+            secondary_msg = f"🌟 Secondary Spiritual Gift: {secondary}"
+            role_msg = f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}"
             verse_msg = "✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11"
 
             if user_lang != "en":
                 try:
                     result_msg = GoogleTranslator(source="en", target=user_lang).translate(result_msg)
+                    secondary_msg = GoogleTranslator(source="en", target=user_lang).translate(secondary_msg)
                     role_msg = GoogleTranslator(source="en", target=user_lang).translate(role_msg)
                     verse_msg = GoogleTranslator(source="en", target=user_lang).translate(verse_msg)
                 except:
                     pass
 
             st.success(result_msg)
-            st.info(role_msg)
+            st.info(secondary_msg)
+            st.markdown(role_msg)
             st.markdown(verse_msg)
 
         except Exception as e:
