@@ -135,17 +135,27 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
     st.subheader("🧪 Spiritual Gifts Assessment")
 
-    sample_input = st.text_input("🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
+    sample_input = st.text_input(
+    "🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
 
-    SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
+SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
 
-    if sample_input:
-        try:
-            user_lang = detect(sample_input)
-            if user_lang not in SUPPORTED_LANG_CODES:
-                st.warning(f"⚠️ Language '{user_lang}' not supported for translation. Defaulting to English.")
-                user_lang = "en"
-        except Exception:
+# Always default to English first
+user_lang = "en"
+
+# Try to detect language if user inputs something
+if sample_input.strip():
+    try:
+        detected = detect(sample_input)
+        if detected in SUPPORTED_LANG_CODES:
+            user_lang = detected
+        else:
+            st.warning(f"⚠️ Language '{detected}' not supported. Defaulting to English.")
+    except Exception as e:
+        st.warning(f"Language detection failed: {e}")
+
+        user_lang = "en"
+    except Exception:
             user_lang = "en"
     else:
         user_lang = "en"
