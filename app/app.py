@@ -136,9 +136,12 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     else:
         st.info("No ministry recommendations available yet. Please take the assessment.")
 
-if st.button("🧹 Clear Previous Gift Assessment"):
-    st.session_state.user_profile.pop("gift_results", None)
-    st.experimental_rerun()
+# ✅ Only show the reset button if user_profile exists
+if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
+    if st.button("🧹 Clear Previous Gift Assessment"):
+        st.session_state.user_profile.pop("gift_results", None)
+        st.experimental_rerun()
+
 
     st.subheader("🧪 Spiritual Gifts Assessment")
 
