@@ -133,9 +133,9 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         - 🌟 Secondary Gift: **{gr['secondary']}** ({gr['secondary_role']})
         """)
 
-    st.subheader("🧪 Spiritual Gifts Assessment")
+st.subheader("🧪 Spiritual Gifts Assessment")
 
-    sample_input = st.text_input(
+sample_input = st.text_input(
     "🌐 Type anything in your language to personalize the experience (e.g. 'Yesu ni Bwana'):")
 
 SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
