@@ -210,7 +210,7 @@ if user_lang != "en":
             st.error("Translation failed. Showing questions in English.")
             questions = questions_en
 else:
-        questions = questions_en
+    questions = questions_en
 
 scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
     # Detect user language and translate if needed
