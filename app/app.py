@@ -210,19 +210,22 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             scale_instruction = scale_instruction
     st.caption(scale_instruction)
 
-    with st.form("gift_assessment_form", clear_on_submit=True):
-        responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_question_slider_{i}") for i, q in enumerate(questions)]
+    # 📋 Show the assessment form
+with st.form("gift_assessment_form", clear_on_submit=True):
+    responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_question_slider_{i}") for i, q in enumerate(questions)]
 
-        submit_text = "🎯 Discover My Spiritual Gift"
-        if user_lang != "en":
-            try:
-                submit_text = GoogleTranslator(source='en', target=user_lang).translate(submit_text)
-            except:
-                submit_text = submit_text
+    submit_text = "🎯 Discover My Spiritual Gift"
+    if user_lang != "en":
+        try:
+            submit_text = GoogleTranslator(source='en', target=user_lang).translate(submit_text)
+        except:
+            pass
 
-        submitted = st.form_submit_button(submit_text)
+    # ✅ This must be inside the form block
+    form_submitted = st.form_submit_button(submit_text)
 
-if submitted:
+# ✅ Only proceed if the form was submitted
+if form_submitted:
     try:
         input_data = np.array(responses).reshape(1, -1)
         probs = model.predict_proba(input_data)[0]
@@ -233,7 +236,7 @@ if submitted:
         primary_role = gift_to_fivefold.get(primary, "Undetermined")
         secondary_role = gift_to_fivefold.get(secondary, "Undetermined")
 
-        # 🧩 Recommend ministries
+        # 🎯 Recommended ministries
         gift_ministry_map = {
             "Teaching": ["Bible Study Leader", "Discipleship Coach", "Apologist"],
             "Prophecy": ["Intercessor", "Prophetic Mentor", "Watchman"],
@@ -252,7 +255,7 @@ if submitted:
 
         ministry_suggestions = recommend_ministries(primary, secondary, gift_ministry_map)
 
-        # Save to session profile
+        # Save to user profile
         st.session_state.user_profile["gift_results"] = {
             "primary": primary,
             "secondary": secondary,
@@ -261,7 +264,7 @@ if submitted:
             "ministries": ministry_suggestions
         }
 
-        # Prepare messages
+        # Translate results if needed
         result_msg = f"🧠 Primary Spiritual Gift: {primary}"
         secondary_msg = f"🌟 Secondary Spiritual Gift: {secondary}"
         role_msg = f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}"
@@ -276,7 +279,7 @@ if submitted:
             except:
                 pass
 
-        # Display Results
+        # Display results
         st.success(result_msg)
         st.info(secondary_msg)
         st.markdown(role_msg)
