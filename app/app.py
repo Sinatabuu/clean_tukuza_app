@@ -8,7 +8,7 @@ from streamlit_webrtc import webrtc_streamer
 import av
 import queue
 import sys
-from streamlit.runtime.scriptrunner import rerun
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
@@ -136,7 +136,8 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
         if st.button("🧹 Clear Previous Gift Assessment"):
             st.session_state.user_profile.pop("gift_results", None)
-            rerun()
+            st.experimental_rerun()
+
 
     st.subheader("🧪 Spiritual Gifts Assessment")
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:")
