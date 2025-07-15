@@ -11,7 +11,7 @@ import sys
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from modules.biblebot_ui import biblebot_ui
+from modules.biblebot_ui import biblebot_ui # Ensure this file is also updated!
 from langdetect import detect
 from deep_translator import GoogleTranslator
 
@@ -24,7 +24,8 @@ def translate_user_input(text, target_lang="en"):
     return text, detected_lang
 
 def translate_bot_response(text, target_lang):
-    from deep_translator import GoogleTranslator
+    # This import is redundant if already at top level, but not harmful
+    # from deep_translator import GoogleTranslator
     if target_lang != 'en':
         return GoogleTranslator(source='en', target=target_lang).translate(text)
     return text
@@ -46,23 +47,26 @@ st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout
 if "user_profile" not in st.session_state:
     st.subheader("👤 Create Your Discipleship Profile")
 
-    name = st.text_input("Your Name")
+    # --- ADDED UNIQUE KEYS TO PROFILE WIDGETS ---
+    name = st.text_input("Your Name", key="profile_name_input")
+    # Age input was removed in your latest version, keeping it out as per your code
     stage = st.selectbox("Your Faith Stage", [
         "New Believer", "Growing Disciple", "Ministry Ready", "Faith Leader"
-    ])
+    ], key="profile_stage_select") # Added key
 
-    if st.button("✅ Save Profile"):
+    if st.button("✅ Save Profile", key="save_profile_button"): # Added key
         st.session_state.user_profile = {
             "name": name,
-            "stage": stage,
+            "stage": stage, # Age key removed as it's not in inputs
             "history": []
         }
         st.success("Profile created for this session!")
+        st.rerun() # Use st.rerun()
 
 elif "user_profile" in st.session_state:
     profile = st.session_state.user_profile
     st.success(f"Welcome back, {profile['name']} – {profile['stage']}")
-    st.json(profile)
+    st.json(profile) # Re-included as per your provided code
 
 # ---------------------------
 # Sidebar Navigation
@@ -73,7 +77,7 @@ tool = st.selectbox("🛠️ Select a Tool", [
     "🔖 Verse Classifier",
     "🌅 Daily Verse",
     "🧪 Spiritual Gifts Assessment"
-], index=0)  # Default to BibleBot
+], index=0, key="tool_selector") # Added key
 
 # ---------------------------
 # 1. BibleBot
@@ -90,13 +94,18 @@ elif tool == "🔖 Verse Classifier":
     model_path = os.path.join("models", "model.pkl")
     vectorizer_path = os.path.join("models", "vectorizer.pkl")
 
+    # --- RE-ADDED MODEL FILE EXISTENCE CHECKS ---
+    if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
+        st.error("Model files not found. Please ensure 'model.pkl' and 'vectorizer.pkl' are in the 'models' directory.")
+        st.stop() # Stops execution here
+
     model = joblib.load(model_path)
     vectorizer = joblib.load(vectorizer_path)
 
     st.write("🧠 Model can detect these topics:", model.classes_)
 
-    verse = st.text_area("Paste a Bible verse here:")
-    if st.button("Classify"):
+    verse = st.text_area("Paste a Bible verse here:", key="verse_classifier_input") # Added key
+    if st.button("Classify", key="classify_button"): # Added key
         if verse.strip() == "":
             st.warning("Please enter a verse.")
         else:
@@ -121,26 +130,31 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         st.stop()
 
     model_path = os.path.join("models", "gift_model.pkl")
+    # --- RE-ADDED MODEL FILE EXISTENCE CHECK ---
+    if not os.path.exists(model_path):
+        st.error("Spiritual gifts model file not found. Please ensure 'gift_model.pkl' is in the 'models' directory.")
+        st.stop() # Stops execution here
+
     model = joblib.load(model_path)
 
     if "gift_results" in st.session_state.user_profile:
         gr = st.session_state.user_profile["gift_results"]
         st.markdown("### 💡 Your Last Spiritual Gift Assessment")
         st.info(f"""
-        - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
+        - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})
         - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
         """)
         st.markdown("### 🚀 Suggested Ministry Pathways")
         for i, role in enumerate(gr.get("ministries", []), 1):
             st.markdown(f"- {i}. **{role}**")
 
-        if st.button("🧹 Clear Previous Gift Assessment"):
+        if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"): # Added key
             st.session_state.user_profile.pop("gift_results", None)
-            st.experimental_rerun()
+            st.rerun() # Changed to st.rerun()
 
 
     st.subheader("🧪 Spiritual Gifts Assessment")
-    sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:")
+    sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:", key="sample_lang_input") # Added key
 
     SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
 
@@ -214,6 +228,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     st.caption(scale_instruction)
 
     with st.form("gift_assessment_form", clear_on_submit=True):
+        # --- ADDED UNIQUE KEYS TO SLIDERS ---
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
 
         submit_text = "🎯 Discover My Spiritual Gift"
@@ -223,10 +238,11 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             except:
                 pass
 
-        submitted = st.form_submit_button(submit_text)
+        submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button") # Added key
 
     if submitted:
         try:
+            # Using pd.DataFrame is fine here, numpy array would also work directly
             input_data = pd.DataFrame([responses], columns=[f"Q{i+1}" for i in range(len(responses))])
             probs = model.predict_proba(input_data)[0]
             top2 = np.argsort(probs)[-2:][::-1]
@@ -285,3 +301,9 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
         except Exception as e:
             st.error(f"⚠️ Error during prediction: {e}")
+
+# ---------------------------
+# © Credit - Always show
+# ---------------------------
+st.markdown("---")
+st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
