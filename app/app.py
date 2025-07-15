@@ -233,7 +233,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
                 except:
                     pass
 
-            submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button")
+            submitted = st.form_submit_button(submit_text)
 
             # Process submission directly within the form's context
             if submitted:
