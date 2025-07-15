@@ -8,12 +8,12 @@ from streamlit_webrtc import webrtc_streamer
 import av
 import queue
 import sys
-# import smtplib # Not currently used, can be removed if no email functionality
-# from email.mime.text import MIMEText # Not currently used
-# from email.mime.multipart import MIMEMultipart # Not currently used
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from modules.biblebot_ui import biblebot_ui # Ensure this file is also updated!
+from modules.biblebot_ui import biblebot_ui
 from langdetect import detect
 from deep_translator import GoogleTranslator
 
@@ -30,13 +30,109 @@ def translate_bot_response(text, target_lang):
         return GoogleTranslator(source='en', target=target_lang).translate(text)
     return text
 
-# 🎤 Voice Input Setup (only if you intend to use voice input)
+# 🎤 Voice Input Setup
 audio_queue = queue.Queue()
 
 class AudioProcessor:
     def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
         audio_queue.put(frame.to_ndarray().flatten().astype("float32").tobytes())
         return frame
+
+# ---------------------------
+# Email Sending Function
+# ---------------------------
+def send_gift_report_email(recipient_email, gift_results, user_profile, user_lang="en"):
+    sender_email = os.environ.get("SENDER_EMAIL")
+    sender_password = os.environ.get("SENDER_PASSWORD") # This should be an App Password if using Gmail with 2FA
+
+    if not sender_email or not sender_password:
+        return "Email credentials not set up. Please configure SENDER_EMAIL and SENDER_PASSWORD environment variables."
+
+    message = MIMEMultipart("alternative")
+    message["From"] = sender_email
+    message["To"] = recipient_email
+
+    # Constructing the email body
+    primary_gift = gift_results.get("primary", "N/A")
+    secondary_gift = gift_results.get("secondary", "N/A")
+    primary_role = gift_results.get("primary_role", "Undetermined")
+    secondary_role = gift_results.get("secondary_role", "Undetermined")
+    ministries = gift_results.get("ministries", [])
+    user_name = user_profile.get("name", "Valued User")
+    user_faith_stage = user_profile.get("stage", "Undetermined")
+
+    ministry_list_html = "<ul>" + "".join([f"<li><b>{m}</b></li>" for m in ministries]) + "</ul>"
+    ministry_list_plain = "- " + "\n- ".join(ministries) if ministries else "N/A"
+
+    subject_en = "Your Tukuza Yesu Spiritual Gifts Assessment Report"
+    text_content_en = f"""
+Dear {user_name},
+
+Thank you for completing your Spiritual Gifts Assessment with Tukuza Yesu AI Toolkit!
+
+Here is a summary of your results:
+
+- Primary Spiritual Gift: {primary_gift} ({primary_role})
+- Secondary Spiritual Gift: {secondary_gift} ({secondary_role})
+
+Suggested Ministry Pathways:
+{ministry_list_plain}
+
+"So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers..." – Ephesians 4:11
+
+May God bless you as you use your gifts for His glory!
+
+Sincerely,
+The Tukuza Yesu Team
+"""
+
+    html_content_en = f"""
+<html>
+    <body>
+        <p>Dear {user_name},</p>
+        <p>Thank you for completing your Spiritual Gifts Assessment with <b>Tukuza Yesu AI Toolkit</b>!</p>
+        <p>Here is a summary of your results:</p>
+        <ul>
+            <li>🧠 Primary Spiritual Gift: <b>{primary_gift}</b> ({primary_role})</li>
+            <li>🌟 Secondary Spiritual Gift: <b>{secondary_gift}</b> ({secondary_role})</li>
+        </ul>
+        <h3>🚀 Suggested Ministry Pathways:</h3>
+        {ministry_list_html}
+        <p>✝️ <i>"So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers..." – Ephesians 4:11</i></p>
+        <p>May God bless you as you use your gifts for His glory!</p>
+        <p>Sincerely,<br>The Tukuza Yesu Team</p>
+    </body>
+</html>
+"""
+    # Translate if necessary
+    subject = subject_en
+    text_content = text_content_en
+    html_content = html_content_en
+
+    if user_lang != "en":
+        try:
+            subject = GoogleTranslator(source="en", target=user_lang).translate(subject_en)
+            text_content = GoogleTranslator(source="en", target=user_lang).translate(text_content_en)
+            html_content = GoogleTranslator(source="en", target=user_lang).translate(html_content_en)
+        except Exception:
+            # Fallback to English if translation fails
+            pass
+
+    message["Subject"] = subject
+    part1 = MIMEText(text_content, "plain")
+    part2 = MIMEText(html_content, "html")
+
+    message.attach(part1)
+    message.attach(part2)
+
+    try:
+        # For Gmail, use smtp.gmail.com and port 465 for SSL or 587 for TLS
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, recipient_email, message.as_string())
+        return "Email sent successfully!"
+    except Exception as e:
+        return f"Failed to send email: {e}"
 
 # ---------------------------
 # App Config
@@ -62,7 +158,7 @@ if "user_profile" not in st.session_state:
             "history": []
         }
         st.success("Profile created for this session!")
-        st.rerun() # Corrected from experimental_rerun()
+        st.rerun()
 
 elif "user_profile" in st.session_state:
     profile = st.session_state.user_profile
@@ -153,14 +249,11 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
         if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
             st.session_state.user_profile.pop("gift_results", None)
-            st.rerun() # Corrected from experimental_rerun()
+            st.rerun()
         
-        # IMPORTANT: Stop execution here if results are already shown.
-        # This prevents the assessment form from being rendered below the results.
-        st.stop()
+        st.stop() # Stop execution here if results are already shown.
 
-    # If we reach here, it means "gift_results" are NOT in session state,
-    # so we should display the assessment form.
+    # Display the assessment form if no gift_results exist
     st.subheader("🧪 Spiritual Gifts Assessment")
 
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:", key="sample_lang_input_assessment")
@@ -237,6 +330,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     st.caption(scale_instruction)
 
     with st.form("gift_assessment_form", clear_on_submit=True):
+        user_email = st.text_input("Your Email for Report (Optional)", key="report_email_input") # Email input added
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
 
         submit_text = "🎯 Discover My Spiritual Gift"
@@ -306,6 +400,17 @@ elif tool == "🧪 Spiritual Gifts Assessment":
                 st.markdown("### 🚀 Suggested Ministry Pathways")
                 for i, role in enumerate(ministry_suggestions, 1):
                     st.markdown(f"- {i}. **{role}**")
+
+                # Send email if an email address was provided
+                if user_email:
+                    with st.spinner("Sending email report..."):
+                        email_status = send_gift_report_email(user_email, st.session_state.user_profile["gift_results"], st.session_state.user_profile, user_lang)
+                        if "successfully" in email_status:
+                            st.success(f"Email report: {email_status}")
+                        else:
+                            st.error(f"Email report failed: {email_status}")
+                else:
+                    st.info("No email provided. Report will not be emailed.")
 
                 st.rerun() # Rerun to display the results and hide the form
 
