@@ -110,6 +110,9 @@ elif tool == "🌅 Daily Verse":
     verse = "“This is the day that the Lord has made; let us rejoice and be glad in it.” – Psalm 118:24"
     st.success(verse)
 
+# ---------------------------
+# 4. Spiritual Gifts Assessment
+# ---------------------------
 elif tool == "🧪 Spiritual Gifts Assessment":
     if "user_profile" not in st.session_state:
         st.warning("⚠️ Please create your discipleship profile before continuing.")
@@ -118,20 +121,19 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     model_path = os.path.join("models", "gift_model.pkl")
     model = joblib.load(model_path)
 
-    # Display previous assessment
-    # ✅ Display saved results if available
-    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
-        gr = st.session_state.user_profile["gift_results"]
-        
-        st.markdown("### 💡 Your Last Spiritual Gift Assessment")
-        st.info(f"""
-        - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
-        - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
-        """)
+        # ✅ Reset button (only shows if previous result exists)
+    if "gift_results" in st.session_state.user_profile:
+        if st.button("🧹 Clear Previous Gift Assessment"):
+            st.session_state.user_profile.pop("gift_results", None)
+            st.experimental_rerun()
+
+    # ✅ Always show the form heading
+    st.subheader("🧪 Spiritual Gifts Assessment")
+
         
         # Optionally also display ministries
-        st.markdown("### 🚀 Suggested Ministry Pathways")
-        for i, role in enumerate(gr.get("ministries", []), 1):
+    st.markdown("### 🚀 Suggested Ministry Pathways")
+    for i, role in enumerate(gr.get("ministries", []), 1):
             st.markdown(f"- {i}. **{role}**")
 
 
@@ -141,8 +143,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             st.session_state.user_profile.pop("gift_results", None)
             st.experimental_rerun()
 
-
-        st.subheader("🧪 Spiritual Gifts Assessment")
 
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:")
 
