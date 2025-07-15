@@ -120,29 +120,29 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
     # Display previous assessment
     # ✅ Display saved results if available
-if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
-    gr = st.session_state.user_profile["gift_results"]
-    
-    st.markdown("### 💡 Your Last Spiritual Gift Assessment")
-    st.info(f"""
-    - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
-    - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
-    """)
-    
-    # Optionally also display ministries
-    st.markdown("### 🚀 Suggested Ministry Pathways")
-    for i, role in enumerate(gr.get("ministries", []), 1):
-        st.markdown(f"- {i}. **{role}**")
+    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
+        gr = st.session_state.user_profile["gift_results"]
+        
+        st.markdown("### 💡 Your Last Spiritual Gift Assessment")
+        st.info(f"""
+        - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
+        - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
+        """)
+        
+        # Optionally also display ministries
+        st.markdown("### 🚀 Suggested Ministry Pathways")
+        for i, role in enumerate(gr.get("ministries", []), 1):
+            st.markdown(f"- {i}. **{role}**")
 
 
-# ✅ Only show the reset button if user_profile exists
-if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
-    if st.button("🧹 Clear Previous Gift Assessment"):
-        st.session_state.user_profile.pop("gift_results", None)
-        st.experimental_rerun()
+    # ✅ Only show the reset button if user_profile exists
+    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
+        if st.button("🧹 Clear Previous Gift Assessment"):
+            st.session_state.user_profile.pop("gift_results", None)
+            st.experimental_rerun()
 
 
-    st.subheader("🧪 Spiritual Gifts Assessment")
+        st.subheader("🧪 Spiritual Gifts Assessment")
 
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:")
 
