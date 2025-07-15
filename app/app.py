@@ -234,13 +234,13 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
 
             submit_text = "🎯 Discover My Spiritual Gift"
-            if user_lang != "en":
+        if user_lang != "en":
                 try:
                     submit_text = GoogleTranslator(source="en", target=user_lang).translate(submit_text)
                 except:
                     pass
 
-            submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button")
+        submitted = st.form_submit_button(submit_text)
 
     # This part executes whether the form was shown or not, if submitted is True
     if submitted: # This `if submitted` block is inside the main tool block
