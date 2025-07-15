@@ -366,4 +366,4 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 # © Credit - Always show
 # ---------------------------
 st.markdown("---")
-st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
+st.caption("Built by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
