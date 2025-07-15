@@ -122,24 +122,24 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     model = joblib.load(model_path)
 
        # ✅ Reset button (only shows if previous result exists)
-if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
-    if st.button("🧹 Clear Previous Gift Assessment"):
-        st.session_state.user_profile.pop("gift_results", None)
-        st.experimental_rerun()  # Rerun immediately before trying to use gift_results
+    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
+        if st.button("🧹 Clear Previous Gift Assessment"):
+            st.session_state.user_profile.pop("gift_results", None)
+            st.experimental_rerun()  # Rerun immediately before trying to use gift_results
 
-# ✅ Now it's safe to read from gift_results
-if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
-    gr = st.session_state.user_profile["gift_results"]
+    # ✅ Now it's safe to read from gift_results
+    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
+        gr = st.session_state.user_profile["gift_results"]
 
-    st.markdown("### 💡 Your Last Spiritual Gift Assessment")
-    st.info(f"""
-    - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
-    - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
-    """)
+        st.markdown("### 💡 Your Last Spiritual Gift Assessment")
+        st.info(f"""
+        - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
+        - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
+        """)
 
-    st.markdown("### 🚀 Suggested Ministry Pathways")
-    for i, role in enumerate(gr.get("ministries", []), 1):
-        st.markdown(f"- {i}. **{role}**")
+        st.markdown("### 🚀 Suggested Ministry Pathways")
+        for i, role in enumerate(gr.get("ministries", []), 1):
+            st.markdown(f"- {i}. **{role}**")
 
     # ✅ Always show the form heading
     st.subheader("🧪 Spiritual Gifts Assessment")
