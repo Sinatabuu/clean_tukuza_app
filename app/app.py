@@ -130,19 +130,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     # ✅ Always show the form heading
     st.subheader("🧪 Spiritual Gifts Assessment")
 
-        
-        # Optionally also display ministries
-    st.markdown("### 🚀 Suggested Ministry Pathways")
-    for i, role in enumerate(gr.get("ministries", []), 1):
-            st.markdown(f"- {i}. **{role}**")
-
-
-    # ✅ Only show the reset button if user_profile exists
-    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
-        if st.button("🧹 Clear Previous Gift Assessment"):
-            st.session_state.user_profile.pop("gift_results", None)
-            st.experimental_rerun()
-
 
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:")
 
