@@ -8,9 +8,10 @@ from streamlit_webrtc import webrtc_streamer
 import av
 import queue
 import sys
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# Removed email imports as they are no longer needed for this feature
+# import smtplib
+# from email.mime.text import MIMEText
+# from email.mime.multipart import MIMEMultipart
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
@@ -39,100 +40,9 @@ class AudioProcessor:
         return frame
 
 # ---------------------------
-# Email Sending Function
+# Email Sending Function (REMOVED - NO LONGER NEEDED)
 # ---------------------------
-def send_gift_report_email(recipient_email, gift_results, user_profile, user_lang="en"):
-    sender_email = os.environ.get("SENDER_EMAIL")
-    sender_password = os.environ.get("SENDER_PASSWORD") # This should be an App Password if using Gmail with 2FA
-
-    if not sender_email or not sender_password:
-        return "Email credentials not set up. Please configure SENDER_EMAIL and SENDER_PASSWORD environment variables."
-
-    message = MIMEMultipart("alternative")
-    message["From"] = sender_email
-    message["To"] = recipient_email
-
-    # Constructing the email body
-    primary_gift = gift_results.get("primary", "N/A")
-    secondary_gift = gift_results.get("secondary", "N/A")
-    primary_role = gift_results.get("primary_role", "Undetermined")
-    secondary_role = gift_results.get("secondary_role", "Undetermined")
-    ministries = gift_results.get("ministries", [])
-    user_name = user_profile.get("name", "Valued User")
-    user_faith_stage = user_profile.get("stage", "Undetermined")
-
-    ministry_list_html = "<ul>" + "".join([f"<li><b>{m}</b></li>" for m in ministries]) + "</ul>"
-    ministry_list_plain = "- " + "\n- ".join(ministries) if ministries else "N/A"
-
-    subject_en = "Your Tukuza Yesu Spiritual Gifts Assessment Report"
-    text_content_en = f"""
-Dear {user_name},
-
-Thank you for completing your Spiritual Gifts Assessment with Tukuza Yesu AI Toolkit!
-
-Here is a summary of your results:
-
-- Primary Spiritual Gift: {primary_gift} ({primary_role})
-- Secondary Spiritual Gift: {secondary_gift} ({secondary_role})
-
-Suggested Ministry Pathways:
-{ministry_list_plain}
-
-"So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers..." – Ephesians 4:11
-
-May God bless you as you use your gifts for His glory!
-
-Sincerely,
-The Tukuza Yesu Team
-"""
-
-    html_content_en = f"""
-<html>
-    <body>
-        <p>Dear {user_name},</p>
-        <p>Thank you for completing your Spiritual Gifts Assessment with <b>Tukuza Yesu AI Toolkit</b>!</p>
-        <p>Here is a summary of your results:</p>
-        <ul>
-            <li>🧠 Primary Spiritual Gift: <b>{primary_gift}</b> ({primary_role})</li>
-            <li>🌟 Secondary Spiritual Gift: <b>{secondary_gift}</b> ({secondary_role})</li>
-        </ul>
-        <h3>🚀 Suggested Ministry Pathways:</h3>
-        {ministry_list_html}
-        <p>✝️ <i>"So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers..." – Ephesians 4:11</i></p>
-        <p>May God bless you as you use your gifts for His glory!</p>
-        <p>Sincerely,<br>The Tukuza Yesu Team</p>
-    </body>
-</html>
-"""
-    # Translate if necessary
-    subject = subject_en
-    text_content = text_content_en
-    html_content = html_content_en
-
-    if user_lang != "en":
-        try:
-            subject = GoogleTranslator(source="en", target=user_lang).translate(subject_en)
-            text_content = GoogleTranslator(source="en", target=user_lang).translate(text_content_en)
-            html_content = GoogleTranslator(source="en", target=user_lang).translate(html_content_en)
-        except Exception:
-            # Fallback to English if translation fails
-            pass
-
-    message["Subject"] = subject
-    part1 = MIMEText(text_content, "plain")
-    part2 = MIMEText(html_content, "html")
-
-    message.attach(part1)
-    message.attach(part2)
-
-    try:
-        # For Gmail, use smtp.gmail.com and port 465 for SSL or 587 for TLS
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, recipient_email, message.as_string())
-        return "Email sent successfully!"
-    except Exception as e:
-        return f"Failed to send email: {e}"
+# def send_gift_report_email(...) -> Removed function
 
 # ---------------------------
 # App Config
@@ -235,9 +145,11 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
     model = joblib.load(model_path)
 
-    # Check if results exist and display them first, along with the clear button
+    # Check if results exist and display them first, along with the clear and download buttons
     if "gift_results" in st.session_state.user_profile:
         gr = st.session_state.user_profile["gift_results"]
+        user_prof = st.session_state.user_profile # Get user profile for report
+
         st.markdown("### 💡 Your Last Spiritual Gift Assessment")
         st.info(f"""
         - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})
@@ -247,9 +159,46 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         for i, role in enumerate(gr.get("ministries", []), 1):
             st.markdown(f"- {i}. **{role}**")
 
-        if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
-            st.session_state.user_profile.pop("gift_results", None)
-            st.rerun()
+        # Prepare content for download
+        report_content = f"""
+Tukuza Yesu Spiritual Gifts Assessment Report
+
+User Name: {user_prof.get('name', 'N/A')}
+Faith Stage: {user_prof.get('stage', 'N/A')}
+
+---
+
+Your Spiritual Gift Assessment Results:
+
+🧠 Primary Spiritual Gift: {gr.get('primary', 'N/A')} ({gr.get('primary_role', 'N/A')})
+🌟 Secondary Spiritual Gift: {gr.get('secondary', 'N/A')} ({gr.get('secondary_role', 'N/A')})
+
+---
+
+🚀 Suggested Ministry Pathways:
+"""
+        for i, role in enumerate(gr.get("ministries", []), 1):
+            report_content += f"- {i}. {role}\n"
+
+        report_content += """
+---
+"So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers..." – Ephesians 4:11
+
+Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
+"""
+        col_buttons_1, col_buttons_2 = st.columns(2)
+        with col_buttons_1:
+            st.download_button(
+                label="⬇️ Download Your Gift Report",
+                data=report_content,
+                file_name=f"tukuza_spiritual_gifts_report_{user_prof.get('name', 'user').replace(' ', '_').lower()}.txt",
+                mime_type="text/plain",
+                key="download_gift_report_button"
+            )
+        with col_buttons_2:
+            if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
+                st.session_state.user_profile.pop("gift_results", None)
+                st.rerun()
         
         st.stop() # Stop execution here if results are already shown.
 
@@ -330,7 +279,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
     st.caption(scale_instruction)
 
     with st.form("gift_assessment_form", clear_on_submit=True):
-        user_email = st.text_input("Your Email for Report (Optional)", key="report_email_input") # Email input added
+        # Removed user_email input
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
 
         submit_text = "🎯 Discover My Spiritual Gift"
@@ -401,18 +350,9 @@ elif tool == "🧪 Spiritual Gifts Assessment":
                 for i, role in enumerate(ministry_suggestions, 1):
                     st.markdown(f"- {i}. **{role}**")
 
-                # Send email if an email address was provided
-                if user_email:
-                    with st.spinner("Sending email report..."):
-                        email_status = send_gift_report_email(user_email, st.session_state.user_profile["gift_results"], st.session_state.user_profile, user_lang)
-                        if "successfully" in email_status:
-                            st.success(f"Email report: {email_status}")
-                        else:
-                            st.error(f"Email report failed: {email_status}")
-                else:
-                    st.info("No email provided. Report will not be emailed.")
+                # Email sending logic removed. Download option will be shown after rerun.
 
-                st.rerun() # Rerun to display the results and hide the form
+                st.rerun() # Rerun to display the results and the download button
 
             except Exception as e:
                 st.error(f"⚠️ Error during prediction: {e}")
