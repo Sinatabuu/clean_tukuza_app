@@ -188,13 +188,18 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 """
         col_buttons_1, col_buttons_2 = st.columns(2)
         with col_buttons_1:
-            st.download_button(
-                label="⬇️ Download Your Gift Report",
-                data=report_content,
-                file_name=f"tukuza_spiritual_gifts_report_{user_prof.get('name', 'user').replace(' ', '_').lower()}.txt",
-                mime_type="text/plain",
-                key="download_gift_report_button"
-            )
+            import textwrap
+
+        report_content = textwrap.dedent(report_content)  # optional cleanup
+
+        st.download_button(
+            label="⬇️ Download Your Gift Report",
+            data=report_content,
+            file_name=f"tukuza_spiritual_gifts_report_{user_prof.get('name', 'user').replace(' ', '_').lower()}.txt",
+            mime="text/plain",  # ✅ this is correct
+            key="download_gift_report_button"
+        )
+
         with col_buttons_2:
             if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
                 st.session_state.user_profile.pop("gift_results", None)
