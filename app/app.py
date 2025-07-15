@@ -119,6 +119,8 @@ elif tool == "🌅 Daily Verse":
 # ---------------------------
 # 4. Spiritual Gifts Assessment
 # ---------------------------
+# ... (previous code) ...
+
 elif tool == "🧪 Spiritual Gifts Assessment":
     if "user_profile" not in st.session_state:
         st.warning("⚠️ Please create your discipleship profile before continuing.")
@@ -131,6 +133,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
     model = joblib.load(model_path)
 
+    # Check if results exist and display them first, along with the clear button
     if "gift_results" in st.session_state.user_profile:
         gr = st.session_state.user_profile["gift_results"]
         st.markdown("### 💡 Your Last Spiritual Gift Assessment")
@@ -142,99 +145,105 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         for i, role in enumerate(gr.get("ministries", []), 1):
             st.markdown(f"- {i}. **{role}**")
 
+        # Keep the clear button always visible when results are displayed
         if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
             st.session_state.user_profile.pop("gift_results", None)
-            st.rerun() # FIX: Changed from st.experimental_rerun()
+            st.rerun()
 
+    st.subheader("🧪 Spiritual Gifts Assessment") # This subheader can stay
 
-    st.subheader("🧪 Spiritual Gifts Assessment")
-    sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:", key="sample_lang_input")
+    # Define submitted outside the form so it's accessible after submission
+    submitted = False # Initialize submitted state
 
-    SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
+    # Only show the form (and sliders) if assessment has not been submitted yet
+    if "gift_results" not in st.session_state.user_profile: # Only show form if no results are present
+        sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:", key="sample_lang_input_new") # New key needed if previous key was shared
 
-    user_lang = "en"
-    if sample_input.strip():
-        try:
-            detected = detect(sample_input)
-            if detected in SUPPORTED_LANG_CODES:
-                user_lang = detected
-            else:
-                st.warning(f"⚠️ Language '{detected}' not supported. Defaulting to English.")
-        except:
-            user_lang = "en"
+        SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
 
-    questions_en = [
-        "I enjoy explaining Bible truths in a clear, structured way.",
-        "I naturally take the lead when organizing ministry activities.",
-        "I feel driven to share the gospel with strangers.",
-        "I often sense spiritual warnings or encouragements for others.",
-        "I easily feel compassion for people who are suffering.",
-        "I enjoy giving resources to help others, even when it costs me.",
-        "I’m happiest when working behind the scenes to help others.",
-        "People often ask for my advice in complex spiritual matters.",
-        "I enjoy studying and understanding deep biblical concepts.",
-        "I trust God even in situations where others worry.",
-        "I can often sense when something is spiritually wrong or deceptive.",
-        "I enjoy hosting people and making them feel welcome.",
-        "I often feel led to pray for others, even for long periods.",
-        "I’m concerned about the spiritual growth of those around me.",
-        "I naturally uplift others who are discouraged or unsure.",
-        "I’ve prayed for people and seen them emotionally or physically healed.",
-        "I enjoy pioneering new ministries or reaching unreached people.",
-        "I enjoy managing projects and keeping people on track.",
-        "I have spoken in a spiritual language not understood by others.",
-        "I can understand and explain messages spoken in tongues.",
-        "I stand firm in my faith even in hostile or public settings.",
-        "I prepare lessons that help people grow in their faith.",
-        "I look for ways to bring spiritual truth into everyday conversations.",
-        "I cry or feel deeply moved when others are in pain.",
-        "I often give above my tithe when I see a need.",
-        "I influence others toward a vision in ministry.",
-        "I can distinguish between truth and error without visible signs.",
-        "I’ve had dreams, impressions, or messages that turned out accurate.",
-        "I take personal responsibility for the spiritual welfare of others.",
-        "I write or speak encouraging words that impact others deeply."
-    ]
+        user_lang = "en"
+        if sample_input.strip():
+            try:
+                detected = detect(sample_input)
+                if detected in SUPPORTED_LANG_CODES:
+                    user_lang = detected
+                else:
+                    st.warning(f"⚠️ Language '{detected}' not supported. Defaulting to English.")
+            except:
+                user_lang = "en"
 
-    gift_to_fivefold = {
-        "Teaching": "Teacher",
-        "Prophecy": "Prophet",
-        "Evangelism": "Evangelist",
-        "Service": "Pastor",
-        "Giving": "Pastor",
-        "Mercy": "Pastor",
-        "Leadership": "Apostle"
-    }
+        questions_en = [
+            "I enjoy explaining Bible truths in a clear, structured way.",
+            "I naturally take the lead when organizing ministry activities.",
+            "I feel driven to share the gospel with strangers.",
+            "I often sense spiritual warnings or encouragements for others.",
+            "I easily feel compassion for people who are suffering.",
+            "I enjoy giving resources to help others, even when it costs me.",
+            "I’m happiest when working behind the scenes to help others.",
+            "People often ask for my advice in complex spiritual matters.",
+            "I enjoy studying and understanding deep biblical concepts.",
+            "I trust God even in situations where others worry.",
+            "I can often sense when something is spiritually wrong or deceptive.",
+            "I enjoy hosting people and making them feel welcome.",
+            "I often feel led to pray for others, even for long periods.",
+            "I’m concerned about the spiritual growth of those around me.",
+            "I naturally uplift others who are discouraged or unsure.",
+            "I’ve prayed for people and seen them emotionally or physically healed.",
+            "I enjoy pioneering new ministries or reaching unreached people.",
+            "I enjoy managing projects and keeping people on track.",
+            "I have spoken in a spiritual language not understood by others.",
+            "I can understand and explain messages spoken in tongues.",
+            "I stand firm in my faith even in hostile or public settings.",
+            "I prepare lessons that help people grow in their faith.",
+            "I look for ways to bring spiritual truth into everyday conversations.",
+            "I cry or feel deeply moved when others are in pain.",
+            "I often give above my tithe when I see a need.",
+            "I influence others toward a vision in ministry.",
+            "I can distinguish between truth and error without visible signs.",
+            "I’ve had dreams, impressions, or messages that turned out accurate.",
+            "I take personal responsibility for the spiritual welfare of others.",
+            "I write or speak encouraging words that impact others deeply."
+        ]
 
-    questions = questions_en
-    if user_lang != "en":
-        try:
-            questions = [GoogleTranslator(source="en", target=user_lang).translate(q) for q in questions_en]
-        except:
-            st.warning("⚠️ Translation failed. Using English.")
+        gift_to_fivefold = {
+            "Teaching": "Teacher",
+            "Prophecy": "Prophet",
+            "Evangelism": "Evangelist",
+            "Service": "Pastor",
+            "Giving": "Pastor",
+            "Mercy": "Pastor",
+            "Leadership": "Apostle"
+        }
 
-    scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
-    if user_lang != "en":
-        try:
-            scale_instruction = GoogleTranslator(source='en', target=user_lang).translate(scale_instruction)
-        except:
-            pass
-    st.caption(scale_instruction)
-
-    with st.form("gift_assessment_form", clear_on_submit=True):
-        responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
-
-        submit_text = "🎯 Discover My Spiritual Gift"
+        questions = questions_en
         if user_lang != "en":
             try:
-                submit_text = GoogleTranslator(source="en", target=user_lang).translate(submit_text)
+                questions = [GoogleTranslator(source="en", target=user_lang).translate(q) for q in questions_en]
+            except:
+                st.warning("⚠️ Translation failed. Using English.")
+
+        scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
+        if user_lang != "en":
+            try:
+                scale_instruction = GoogleTranslator(source='en', target=user_lang).translate(scale_instruction)
             except:
                 pass
+        st.caption(scale_instruction)
 
-        submitted = st.form_submit_button(submit_text)
+        with st.form("gift_assessment_form", clear_on_submit=True):
+            responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
 
+            submit_text = "🎯 Discover My Spiritual Gift"
+            if user_lang != "en":
+                try:
+                    submit_text = GoogleTranslator(source="en", target=user_lang).translate(submit_text)
+                except:
+                    pass
 
-    if submitted:
+            submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button")
+
+    # This part executes whether the form was shown or not, if submitted is True
+    if submitted: # This `if submitted` block is inside the main tool block
         try:
             input_data = pd.DataFrame([responses], columns=[f"Q{i+1}" for i in range(len(responses))])
             probs = model.predict_proba(input_data)[0]
@@ -291,9 +300,13 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             st.markdown("### 🚀 Suggested Ministry Pathways")
             for i, role in enumerate(ministry_suggestions, 1):
                 st.markdown(f"- {i}. **{role}**")
+            
+            # Rerun immediately after submitting to display results and hide form
+            st.rerun()
 
         except Exception as e:
             st.error(f"⚠️ Error during prediction: {e}")
+
 
 # ---------------------------
 # © Credit - Always show
