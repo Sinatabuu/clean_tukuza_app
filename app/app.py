@@ -114,41 +114,49 @@ elif tool == "🌅 Daily Verse":
 # 4. Spiritual Gifts Assessment
 # ---------------------------
 elif tool == "🧪 Spiritual Gifts Assessment":
+    st.subheader("🧪 Spiritual Gifts Assessment")
+
     if "user_profile" not in st.session_state:
         st.warning("⚠️ Please create your discipleship profile before continuing.")
         st.stop()
 
+    # Load ML model
     model_path = os.path.join("models", "gift_model.pkl")
     model = joblib.load(model_path)
 
-       # ✅ Reset button (only shows if previous result exists)
-    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
+    # Gift → Fivefold role mapping
+    gift_to_fivefold = {
+        "Teaching": "Teacher",
+        "Prophecy": "Prophet",
+        "Evangelism": "Evangelist",
+        "Service": "Pastor",
+        "Giving": "Pastor",
+        "Mercy": "Pastor",
+        "Leadership": "Apostle"
+    }
+
+    gift_ministry_map = {
+        "Teaching": ["Bible Study Leader", "Discipleship Coach", "Apologist"],
+        "Prophecy": ["Intercessor", "Prophetic Mentor", "Watchman"],
+        "Evangelism": ["Street Evangelist", "Mission Worker", "Church Planter"],
+        "Service": ["Church Operations", "Setup Crew", "Admin Support"],
+        "Mercy": ["Counselor", "Hospital Chaplain", "Comfort Ministry"],
+        "Giving": ["Donor Relations", "Fundraising Coordinator", "Business-as-Mission"],
+        "Leadership": ["Ministry Director", "Visionary Leader", "Team Builder"]
+    }
+
+    def recommend_ministries(primary, secondary, gift_map):
+        return list(set(gift_map.get(primary, []) + gift_map.get(secondary, [])))[:3]
+
+    # Reset button
+    if "gift_results" in st.session_state.user_profile:
         if st.button("🧹 Clear Previous Gift Assessment"):
             st.session_state.user_profile.pop("gift_results", None)
-            st.experimental_rerun()  # Rerun immediately before trying to use gift_results
+            st.experimental_rerun()
 
-    # ✅ Now it's safe to read from gift_results
-    if "user_profile" in st.session_state and "gift_results" in st.session_state.user_profile:
-        gr = st.session_state.user_profile["gift_results"]
-
-        st.markdown("### 💡 Your Last Spiritual Gift Assessment")
-        st.info(f"""
-        - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})  
-        - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
-        """)
-
-        st.markdown("### 🚀 Suggested Ministry Pathways")
-        for i, role in enumerate(gr.get("ministries", []), 1):
-            st.markdown(f"- {i}. **{role}**")
-
-    # ✅ Always show the form heading
-    st.subheader("🧪 Spiritual Gifts Assessment")
-
-
+    # Language personalization
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:")
-
     SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
-
     user_lang = "en"
     if sample_input.strip():
         try:
@@ -158,8 +166,9 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             else:
                 st.warning(f"⚠️ Language '{detected}' not supported. Defaulting to English.")
         except:
-            user_lang = "en"
+            pass
 
+    # Questions (EN + optional translation)
     questions_en = [
         "I enjoy explaining Bible truths in a clear, structured way.",
         "I naturally take the lead when organizing ministry activities.",
@@ -193,17 +202,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         "I write or speak encouraging words that impact others deeply."
     ]
 
-    gift_to_fivefold = {
-        "Teaching": "Teacher",
-        "Prophecy": "Prophet",
-        "Evangelism": "Evangelist",
-        "Service": "Pastor",
-        "Giving": "Pastor",
-        "Mercy": "Pastor",
-        "Leadership": "Apostle"
-    }
-
-    # Translate questions if needed
     questions = questions_en
     if user_lang != "en":
         try:
@@ -211,7 +209,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         except:
             st.warning("⚠️ Translation failed. Using English.")
 
-    # Instruction
     scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
     if user_lang != "en":
         try:
@@ -220,78 +217,56 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             pass
     st.caption(scale_instruction)
 
-    # Form
+    submitted = False
+    responses = []
+
+    # Form UI
     with st.form("gift_assessment_form", clear_on_submit=True):
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
-
         submit_text = "🎯 Discover My Spiritual Gift"
         if user_lang != "en":
             try:
                 submit_text = GoogleTranslator(source="en", target=user_lang).translate(submit_text)
             except:
                 pass
-
         submitted = st.form_submit_button(submit_text)
 
+    # 🎯 Show current or new result
+    result_data = None
     if submitted:
         try:
             input_data = np.array(responses).reshape(1, -1)
             probs = model.predict_proba(input_data)[0]
             top2 = np.argsort(probs)[-2:][::-1]
-
             primary = model.classes_[top2[0]]
             secondary = model.classes_[top2[1]]
 
             primary_role = gift_to_fivefold.get(primary, "Undetermined")
             secondary_role = gift_to_fivefold.get(secondary, "Undetermined")
+            ministries = recommend_ministries(primary, secondary, gift_ministry_map)
 
-            gift_ministry_map = {
-                "Teaching": ["Bible Study Leader", "Discipleship Coach", "Apologist"],
-                "Prophecy": ["Intercessor", "Prophetic Mentor", "Watchman"],
-                "Evangelism": ["Street Evangelist", "Mission Worker", "Church Planter"],
-                "Service": ["Church Operations", "Setup Crew", "Admin Support"],
-                "Mercy": ["Counselor", "Hospital Chaplain", "Comfort Ministry"],
-                "Giving": ["Donor Relations", "Fundraising Coordinator", "Business-as-Mission"],
-                "Leadership": ["Ministry Director", "Visionary Leader", "Team Builder"]
-            }
-
-            def recommend_ministries(primary, secondary, gift_map):
-                return list(set(gift_map.get(primary, []) + gift_map.get(secondary, [])))[:3]
-
-            ministry_suggestions = recommend_ministries(primary, secondary, gift_ministry_map)
-
-            # Save to session
-            st.session_state.user_profile["gift_results"] = {
+            result_data = {
                 "primary": primary,
                 "secondary": secondary,
                 "primary_role": primary_role,
                 "secondary_role": secondary_role,
-                "ministries": ministry_suggestions
+                "ministries": ministries
             }
 
-            # Display
-            result_msg = f"🧠 Primary Spiritual Gift: {primary}"
-            secondary_msg = f"🌟 Secondary Spiritual Gift: {secondary}"
-            role_msg = f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}"
-            verse_msg = "✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11"
-
-            if user_lang != "en":
-                try:
-                    result_msg = GoogleTranslator(source="en", target=user_lang).translate(result_msg)
-                    secondary_msg = GoogleTranslator(source="en", target=user_lang).translate(secondary_msg)
-                    role_msg = GoogleTranslator(source="en", target=user_lang).translate(role_msg)
-                    verse_msg = GoogleTranslator(source="en", target=user_lang).translate(verse_msg)
-                except:
-                    pass
-
-            st.success(result_msg)
-            st.info(secondary_msg)
-            st.markdown(role_msg)
-            st.markdown(verse_msg)
-
-            st.markdown("### 🚀 Suggested Ministry Pathways")
-            for i, role in enumerate(ministry_suggestions, 1):
-                st.markdown(f"- {i}. **{role}**")
+            st.session_state.user_profile["gift_results"] = result_data
 
         except Exception as e:
             st.error(f"⚠️ Error during prediction: {e}")
+
+    # Display results: either new or saved
+    result_to_show = result_data or st.session_state.user_profile.get("gift_results")
+
+    if result_to_show:
+        st.markdown("### 💡 Your Spiritual Gift Assessment")
+        st.success(f"🧠 Primary Gift: **{result_to_show['primary']}** ({result_to_show['primary_role']})")
+        st.info(f"🌟 Secondary Gift: **{result_to_show['secondary']}** ({result_to_show['secondary_role']})")
+
+        st.markdown("### 🚀 Suggested Ministry Pathways")
+        for i, role in enumerate(result_to_show.get("ministries", []), 1):
+            st.markdown(f"- {i}. **{role}**")
+
