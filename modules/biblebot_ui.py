@@ -106,5 +106,5 @@ def biblebot_ui():
     """, unsafe_allow_html=True)
 
     # © Credit - Always show at the bottom
-    st.markdown("---")
-    st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
+    #st.markdown("---")
+    #st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
