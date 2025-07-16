@@ -71,6 +71,20 @@ CREATE TABLE IF NOT EXISTS gift_assessments (
 """)
 conn.commit() # Commit table creations
 
+# Create table for spiritual growth journal entries
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS growth_journal (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    entry TEXT NOT NULL,
+    reflection TEXT,
+    goal TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user_profiles(id)
+)
+""")
+conn.commit()
+
 # ---------------------------
 # App Config
 # ---------------------------
