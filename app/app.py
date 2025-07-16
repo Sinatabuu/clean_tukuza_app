@@ -176,8 +176,28 @@ elif tool == "📘 Spiritual Growth Tracker":
                 """, (st.session_state.user_id, entry, reflection, goal))
                 conn.commit()
                 st.success("✅ Journal entry saved!")
-                st.rerun()  # Rerun to clear form and show success message
+                #st.rerun()  # Rerun to clear form and show success message
 
+    st.markdown("---")
+    st.subheader("📚 Your Past Journal Entries")
+
+    cursor.execute("""
+        SELECT entry, reflection, goal, timestamp
+        FROM growth_journal
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
+    """, (st.session_state.user_id,))
+
+    journal_entries = cursor.fetchall()
+
+    if not journal_entries:
+        st.info("You haven’t written any journal entries yet.")
+    else:
+        for i, (entry, reflection, goal, timestamp) in enumerate(journal_entries, 1):
+            with st.expander(f"📅 Entry {i} – {timestamp}"):
+                st.markdown(f"**✍️ What God taught me:** {entry}")
+                st.markdown(f"**💭 Reflection/Encouragement:** {reflection}")
+                st.markdown(f"**🎯 Weekly Goal:** {goal}")
 
 # ---------------------------
 # 2. Verse Classifier
