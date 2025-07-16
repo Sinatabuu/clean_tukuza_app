@@ -199,6 +199,36 @@ elif tool == "📘 Spiritual Growth Tracker":
                 st.markdown(f"**💭 Reflection/Encouragement:** {reflection}")
                 st.markdown(f"**🎯 Weekly Goal:** {goal}")
 
+    st.markdown("---")
+    st.subheader("📚 Past Journal Entries")
+
+    if journal_entries:
+        for entry_text, reflection, goal, timestamp, entry_id in journal_entries:
+            with st.expander(f"📅 {timestamp}"):
+                st.markdown(f"**✍️ Entry:** {entry_text}")
+                st.markdown(f"**💭 Reflection:** {reflection}")
+                st.markdown(f"**🎯 Goal:** {goal}")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("✏️ Edit", key=f"edit_{entry_id}"):
+                        st.session_state.editing_entry_id = entry_id
+                        st.session_state.editing_data = {
+                            "entry": entry_text,
+                            "reflection": reflection,
+                            "goal": goal
+                        }
+                        st.rerun()
+
+            with col2:
+                if st.button("🗑️ Delete", key=f"delete_{entry_id}"):
+                    cursor.execute("DELETE FROM growth_journal WHERE id = ?", (entry_id,))
+                    conn.commit()
+                    st.success("Deleted successfully!")
+                    st.rerun()
+else:
+    st.info("No past journal entries yet.")
+
 # ---------------------------
 # 2. Verse Classifier
 # ---------------------------
