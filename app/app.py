@@ -226,8 +226,8 @@ elif tool == "📘 Spiritual Growth Tracker":
                     conn.commit()
                     st.success("Deleted successfully!")
                     st.rerun()
-else:
-    st.info("No past journal entries yet.")
+    else:
+      st.info("No past journal entries yet.")
 
 # ---------------------------
 # 2. Verse Classifier
