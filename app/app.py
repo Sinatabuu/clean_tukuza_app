@@ -37,16 +37,12 @@ class AudioProcessor:
         audio_queue.put(frame.to_ndarray().flatten().astype("float32").tobytes())
         return frame
 
-# ---------------------------
+#---------------------------
 # SQLite Setup
 # ---------------------------
-# Use st.connection for better resource management in Streamlit Cloud
-# or ensure connection is handled correctly for multi-threading if not using st.connection
-# For simplicity, keeping your direct sqlite3.connect for now, but be aware of best practices
 conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Create table for user profiles if it doesn't exist
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +51,6 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 )
 """)
 
-# Create table for gift assessments if it doesn't exist
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS gift_assessments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,21 +59,20 @@ CREATE TABLE IF NOT EXISTS gift_assessments (
     secondary_gift TEXT,
     primary_role TEXT,
     secondary_role TEXT,
-    ministries TEXT, -- Stored as JSON string
+    ministries TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user_profiles(id)
 )
 """)
-conn.commit() # Commit table creations
 
-# Create table for spiritual growth journal entries
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS growth_journal (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    entry TEXT NOT NULL,
+    entry TEXT,
     reflection TEXT,
     goal TEXT,
+    mood TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user_profiles(id)
 )
@@ -149,9 +143,9 @@ if tool == "📖 BibleBot":
     biblebot_ui()
 
 # ---------------------------
-# 5. Spiritual Growth Tracker
+# 2. Spiritual Growth Tracker
 # ---------------------------
-elif tool == "📘 Spiritual Growth Tracker":
+if tool == "📘 Spiritual Growth Tracker":
     if "user_id" not in st.session_state:
         st.warning("⚠️ Please create your discipleship profile before continuing.")
         st.stop()
@@ -163,6 +157,7 @@ elif tool == "📘 Spiritual Growth Tracker":
         entry = st.text_area("✍️ What did God teach you today?", key="growth_entry")
         reflection = st.text_area("💭 Any reflections, struggles, or encouragement?", key="growth_reflection")
         goal = st.text_input("🎯 Set a goal for your spiritual walk this week", key="growth_goal")
+        mood = st.selectbox("😌 Mood", ["😊 Joyful", "🙏 Thankful", "😢 Heavy", "😐 Neutral", "💪 Empowered"], key="growth_mood")
 
         submitted = st.form_submit_button("📌 Save Entry")
 
@@ -171,67 +166,38 @@ elif tool == "📘 Spiritual Growth Tracker":
                 st.warning("Please write something in your journal entry.")
             else:
                 cursor.execute("""
-                    INSERT INTO growth_journal (user_id, entry, reflection, goal)
-                    VALUES (?, ?, ?, ?)
-                """, (st.session_state.user_id, entry, reflection, goal))
+                    INSERT INTO growth_journal (user_id, entry, reflection, goal, mood)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (st.session_state.user_id, entry, reflection, goal, mood))
                 conn.commit()
                 st.success("✅ Journal entry saved!")
-                #st.rerun()  # Rerun to clear form and show success message
+                st.rerun()
 
-    st.markdown("---")
+    # Show past entries
     st.subheader("📚 Your Past Journal Entries")
-
-    cursor.execute(""" 
-    SELECT entry, reflection, goal, timestamp, id
-    FROM growth_journal
-    WHERE user_id = ?
-    ORDER BY timestamp DESC
+    cursor.execute("""
+        SELECT id, entry, reflection, goal, mood, timestamp
+        FROM growth_journal
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
     """, (st.session_state.user_id,))
-
-
     journal_entries = cursor.fetchall()
 
-    if not journal_entries:
-        st.info("You haven’t written any journal entries yet.")
-    else:
-        for i, (entry, reflection, goal, timestamp, id) in enumerate(journal_entries, 1):
-            with st.expander(f"📅 Entry {i} – {timestamp}"):
-                st.markdown(f"**✍️ What God taught me:** {entry}")
-                st.markdown(f"**💭 Reflection/Encouragement:** {reflection}")
-                st.markdown(f"**🎯 Weekly Goal:** {goal}")
+    for i, (entry_id, entry, reflection, goal, mood, timestamp) in enumerate(journal_entries, 1):
+        with st.expander(f"📖 Entry #{i} – {timestamp}"):
+            st.markdown(f"**Mood:** {mood}")
+            st.markdown(f"**Entry:** {entry}")
+            st.markdown(f"**Reflection:** {reflection}")
+            st.markdown(f"**Goal:** {goal}")
 
-    st.markdown("---")
-    st.subheader("📚 Past Journal Entries")
-
-    if journal_entries:
-        for entry_text, reflection, goal, timestamp, entry_id in journal_entries:
-            with st.expander(f"📅 {timestamp}"):
-                st.markdown(f"**✍️ Entry:** {entry_text}")
-                st.markdown(f"**💭 Reflection:** {reflection}")
-                st.markdown(f"**🎯 Goal:** {goal}")
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("✏️ Edit", key=f"edit_{entry_id}"):
-                        st.session_state.editing_entry_id = entry_id
-                        st.session_state.editing_data = {
-                            "entry": entry_text,
-                            "reflection": reflection,
-                            "goal": goal
-                        }
-                        st.rerun()
-
-            with col2:
-                if st.button("🗑️ Delete", key=f"delete_{entry_id}"):
-                    cursor.execute("DELETE FROM growth_journal WHERE id = ?", (entry_id,))
-                    conn.commit()
-                    st.success("Deleted successfully!")
-                    st.rerun()
-    else:
-      st.info("No past journal entries yet.")
+            if st.button(f"❌ Delete Entry #{entry_id}", key=f"delete_entry_{entry_id}"):
+                cursor.execute("DELETE FROM growth_journal WHERE id = ?", (entry_id,))
+                conn.commit()
+                st.success("Entry deleted!")
+                st.rerun()
 
 # ---------------------------
-# 2. Verse Classifier
+# 3. Verse Classifier
 # ---------------------------
 elif tool == "🔖 Verse Classifier":
     st.subheader("Classify a Bible Verse")
@@ -258,7 +224,7 @@ elif tool == "🔖 Verse Classifier":
             st.success(f"🧠 Detected Topic: **{prediction}**")
 
 # ---------------------------
-# 3. Daily Verse
+# 4. Daily Verse
 # ---------------------------
 elif tool == "🌅 Daily Verse":
     st.subheader("🌞 Your Daily Verse")
@@ -266,7 +232,7 @@ elif tool == "🌅 Daily Verse":
     st.success(verse)
 
 # ---------------------------
-# 4. Spiritual Gifts Assessment
+# 5. Spiritual Gifts Assessment
 # ---------------------------
 elif tool == "🧪 Spiritual Gifts Assessment":
     if "user_id" not in st.session_state: # Check for user_id, not user_profile directly
