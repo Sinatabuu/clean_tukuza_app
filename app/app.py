@@ -181,12 +181,13 @@ elif tool == "📘 Spiritual Growth Tracker":
     st.markdown("---")
     st.subheader("📚 Your Past Journal Entries")
 
-    cursor.execute("""
-        SELECT entry, reflection, goal, timestamp
-        FROM growth_journal
-        WHERE user_id = ?
-        ORDER BY timestamp DESC
+    cursor.execute(""" 
+    SELECT entry, reflection, goal, timestamp, id
+    FROM growth_journal
+    WHERE user_id = ?
+    ORDER BY timestamp DESC
     """, (st.session_state.user_id,))
+
 
     journal_entries = cursor.fetchall()
 
