@@ -194,7 +194,7 @@ elif tool == "📘 Spiritual Growth Tracker":
     if not journal_entries:
         st.info("You haven’t written any journal entries yet.")
     else:
-        for i, (entry, reflection, goal, timestamp) in enumerate(journal_entries, 1):
+        for i, (entry, reflection, goal, timestamp, id) in enumerate(journal_entries, 1):
             with st.expander(f"📅 Entry {i} – {timestamp}"):
                 st.markdown(f"**✍️ What God taught me:** {entry}")
                 st.markdown(f"**💭 Reflection/Encouragement:** {reflection}")
