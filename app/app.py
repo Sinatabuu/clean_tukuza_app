@@ -156,8 +156,27 @@ elif tool == "📘 Spiritual Growth Tracker":
         st.warning("⚠️ Please create your discipleship profile before continuing.")
         st.stop()
 
-    st.subheader("📘 Your Spiritual Growth Tracker (Coming Soon)")
-    st.info("This module will allow you to journal, set weekly goals, and reflect on your spiritual progress.")
+    st.subheader("📘 Spiritual Growth Journal")
+    st.subheader("📝 New Journal Entry")
+
+with st.form("growth_journal_form", clear_on_submit=True):
+    entry = st.text_area("✍️ What did God teach you today?", key="growth_entry")
+    reflection = st.text_area("💭 Any reflections, struggles, or encouragement?", key="growth_reflection")
+    goal = st.text_input("🎯 Set a goal for your spiritual walk this week", key="growth_goal")
+
+    submitted = st.form_submit_button("📌 Save Entry")
+
+    if submitted:
+        if entry.strip() == "":
+            st.warning("Please write something in your journal entry.")
+        else:
+            cursor.execute("""
+                INSERT INTO growth_journal (user_id, entry, reflection, goal)
+                VALUES (?, ?, ?, ?)
+            """, (st.session_state.user_id, entry, reflection, goal))
+            conn.commit()
+            st.success("✅ Journal entry saved!")
+
 
 # ---------------------------
 # 2. Verse Classifier
