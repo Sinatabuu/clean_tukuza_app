@@ -159,23 +159,24 @@ elif tool == "📘 Spiritual Growth Tracker":
     st.subheader("📘 Spiritual Growth Journal")
     st.subheader("📝 New Journal Entry")
 
-with st.form("growth_journal_form", clear_on_submit=True):
-    entry = st.text_area("✍️ What did God teach you today?", key="growth_entry")
-    reflection = st.text_area("💭 Any reflections, struggles, or encouragement?", key="growth_reflection")
-    goal = st.text_input("🎯 Set a goal for your spiritual walk this week", key="growth_goal")
+    with st.form("growth_journal_form", clear_on_submit=True):
+        entry = st.text_area("✍️ What did God teach you today?", key="growth_entry")
+        reflection = st.text_area("💭 Any reflections, struggles, or encouragement?", key="growth_reflection")
+        goal = st.text_input("🎯 Set a goal for your spiritual walk this week", key="growth_goal")
 
-    submitted = st.form_submit_button("📌 Save Entry")
+        submitted = st.form_submit_button("📌 Save Entry")
 
-    if submitted:
-        if entry.strip() == "":
-            st.warning("Please write something in your journal entry.")
-        else:
-            cursor.execute("""
-                INSERT INTO growth_journal (user_id, entry, reflection, goal)
-                VALUES (?, ?, ?, ?)
-            """, (st.session_state.user_id, entry, reflection, goal))
-            conn.commit()
-            st.success("✅ Journal entry saved!")
+        if submitted:
+            if entry.strip() == "":
+                st.warning("Please write something in your journal entry.")
+            else:
+                cursor.execute("""
+                    INSERT INTO growth_journal (user_id, entry, reflection, goal)
+                    VALUES (?, ?, ?, ?)
+                """, (st.session_state.user_id, entry, reflection, goal))
+                conn.commit()
+                st.success("✅ Journal entry saved!")
+                st.rerun()  # Rerun to clear form and show success message
 
 
 # ---------------------------
