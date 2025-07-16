@@ -1,18 +1,20 @@
 import streamlit as st
-from openai import OpenAI
+from openai import OpenAI # Assuming OpenAI client is used in biblebot_ui
 import os
 import joblib
 import numpy as np
 import pandas as pd
 import sqlite3
-from streamlit_webrtc import webrtc_streamer
-import av
-import queue
+# Removed unused imports if voice input is not actively used:
+# from streamlit_webrtc import webrtc_streamer
+# import av
+# import queue
 import sys
-import json # Import for handling JSON serialization of lists
+import json # Already imported, good for handling JSON serialization of lists
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from modules.biblebot_ui import biblebot_ui
+from modules.biblebot_ui import biblebot_ui # Assuming this module uses OpenAI
+
 from langdetect import detect
 from deep_translator import GoogleTranslator
 
@@ -29,49 +31,33 @@ def translate_bot_response(text, target_lang):
         return GoogleTranslator(source='en', target=target_lang).translate(text)
     return text
 
-# 🎤 Voice Input Setup
-audio_queue = queue.Queue()
+# 🎤 Voice Input Setup (Commented out if not actively used)
+# audio_queue = queue.Queue()
+# class AudioProcessor:
+#     def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
+#         audio_queue.put(frame.to_ndarray().flatten().astype("float32").tobytes())
+#         return frame
 
-class AudioProcessor:
-    def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
-        audio_queue.put(frame.to_ndarray().flatten().astype("float32").tobytes())
-        return frame
-
-#---------------------------
-# SQLite Setup
-# ---------------------------
-# 💻 Developer Tool - Reset DB (Optional)
 # ---------------------------
 # SQLite Setup
 # ---------------------------
-conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
+# Use st.cache_resource for efficient database connection management.
+# This ensures the connection is only created once and reused across reruns.
+@st.cache_resource
+def get_db_connection():
+    conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
+    # Set row_factory to sqlite3.Row for dictionary-like access to rows
+    # conn.row_factory = sqlite3.Row # Uncomment if you prefer dict-like access
+    return conn
+
+conn = get_db_connection()
 cursor = conn.cursor()
 
-# ---------------------------
-# Developer Reset DB Option
-# ---------------------------
-with st.sidebar.expander("⚙️ Developer Tools"):
-    if st.button("🚨 Reset Discipleship DB (Dev Only)"):
-        try:
-            conn.close()
-        except:
-            pass
-        if os.path.exists("discipleship_agent.db"):
-            os.remove("discipleship_agent.db")
-            st.success("Database deleted. Please reload the app.")
-            st.stop()
-        else:
-            st.warning("No existing DB found to delete.")
-
-
-
-#conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
-#cursor = conn.cursor()
-
+# Create tables if they don't exist
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE, -- Added UNIQUE constraint for name
     stage TEXT NOT NULL
 )
 """)
@@ -84,7 +70,7 @@ CREATE TABLE IF NOT EXISTS gift_assessments (
     secondary_gift TEXT,
     primary_role TEXT,
     secondary_role TEXT,
-    ministries TEXT,
+    ministries TEXT, -- Stored as JSON string
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user_profiles(id)
 )
@@ -102,34 +88,55 @@ CREATE TABLE IF NOT EXISTS growth_journal (
     FOREIGN KEY (user_id) REFERENCES user_profiles(id)
 )
 """)
-conn.commit()
+conn.commit() # Commit table creations
 
 # ---------------------------
 # App Config
 # ---------------------------
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
 
-# 🔐 User Registration UI
+# 🔐 User Management (Login/Registration UI)
 if "user_id" not in st.session_state:
-    st.subheader("👤 Create Your Discipleship Profile")
+    st.subheader("👤 Login or Create Your Discipleship Profile")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        name = st.text_input("Your Name", key="profile_name_input")
-    with col2:
-        stage = st.selectbox("Your Faith Stage", [
-            "New Believer", "Growing Disciple", "Ministry Ready", "Faith Leader"
-        ], key="profile_stage_select")
+    login_tab, register_tab = st.tabs(["Login", "Register New Profile"])
 
-    if st.button("✅ Save Profile", key="save_profile_button"):
-        if name.strip() == "":
-            st.warning("Please enter your name to create a profile.")
+    with login_tab:
+        st.markdown("### Existing User Login")
+        # Fetch existing users to allow selection
+        cursor.execute("SELECT id, name FROM user_profiles ORDER BY name")
+        existing_users = cursor.fetchall()
+        
+        if existing_users:
+            user_options = {name: uid for uid, name in existing_users}
+            selected_name = st.selectbox("Select Your Name", options=list(user_options.keys()), key="login_name_select")
+            if st.button("🚪 Login", key="login_button"):
+                st.session_state.user_id = user_options[selected_name]
+                st.success(f"Logged in as {selected_name}!")
+                st.rerun()
         else:
-            cursor.execute("INSERT INTO user_profiles (name, stage) VALUES (?, ?)", (name, stage))
-            conn.commit()
-            st.session_state.user_id = cursor.lastrowid
-            st.success("Profile saved successfully!")
-            st.rerun()
+            st.info("No profiles found. Please register a new profile.")
+
+    with register_tab:
+        st.markdown("### Register New Profile")
+        reg_name = st.text_input("Your Name", key="register_profile_name_input")
+        reg_stage = st.selectbox("Your Faith Stage", [
+            "New Believer", "Growing Disciple", "Ministry Ready", "Faith Leader"
+        ], key="register_profile_stage_select")
+
+        if st.button("✅ Create Profile", key="create_profile_button"):
+            if reg_name.strip() == "":
+                st.warning("Please enter your name to create a profile.")
+            else:
+                try:
+                    cursor.execute("INSERT INTO user_profiles (name, stage) VALUES (?, ?)", (reg_name, reg_stage))
+                    conn.commit()
+                    st.session_state.user_id = cursor.lastrowid
+                    st.success(f"Profile for {reg_name} created and logged in!")
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error(f"A profile with the name '{reg_name}' already exists. Please choose a different name or log in.")
+
 else:
     user_id = st.session_state.user_id
     cursor.execute("SELECT name, stage FROM user_profiles WHERE id = ?", (user_id,))
@@ -138,8 +145,14 @@ else:
         st.session_state.user_profile = {"name": user_data[0], "stage": user_data[1]} # Load profile into session state
         col1, col2 = st.columns([2, 1])
         with col1:
-            st.success(f"Welcome back, {user_data[0]} – {user_data[1]}")
+            st.success(f"Welcome back, **{user_data[0]}** – {user_data[1]}")
         with col2:
+            # Added a logout button for convenience
+            if st.button("↩️ Logout", key="logout_button"):
+                st.session_state.pop("user_id", None)
+                st.session_state.pop("user_profile", None)
+                st.info("Logged out successfully.")
+                st.rerun()
             st.markdown("<div style='text-align:right'>🧭 Profile loaded</div>", unsafe_allow_html=True)
     else:
         # Handle case where user_id in session_state doesn't match a DB record (e.g., DB reset)
@@ -155,28 +168,25 @@ else:
 st.markdown("### ✝️ Tukuza Yesu Toolkit")
 tool = st.selectbox("🛠️ Select a Tool", [
     "📖 BibleBot",
-    "📘 Spiritual Growth Tracker",
+    "📘 Spiritual Growth Tracker", # Moved up for logical flow as it's a new feature
     "🔖 Verse Classifier",
     "🌅 Daily Verse",
-    "🧪 Spiritual Gifts Assessment",     
+    "🧪 Spiritual Gifts Assessment"
 ], index=0, key="tool_selector")
 
 # ---------------------------
-# 1. BibleBot
+# Tool Sections (using a consistent if/elif structure)
 # ---------------------------
 if tool == "📖 BibleBot":
     biblebot_ui()
 
-# ---------------------------
-# 2. Spiritual Growth Tracker
-# ---------------------------
-if tool == "📘 Spiritual Growth Tracker":
+elif tool == "📘 Spiritual Growth Tracker":
     if "user_id" not in st.session_state:
-        st.warning("⚠️ Please create your discipleship profile before continuing.")
+        st.warning("⚠️ Please log in or create your discipleship profile before continuing.")
         st.stop()
 
     st.subheader("📘 Spiritual Growth Journal")
-    st.subheader("📝 New Journal Entry")
+    st.markdown("### 📝 New Journal Entry")
 
     with st.form("growth_journal_form", clear_on_submit=True):
         entry = st.text_area("✍️ What did God teach you today?", key="growth_entry")
@@ -184,7 +194,7 @@ if tool == "📘 Spiritual Growth Tracker":
         goal = st.text_input("🎯 Set a goal for your spiritual walk this week", key="growth_goal")
         mood = st.selectbox("😌 Mood", ["😊 Joyful", "🙏 Thankful", "😢 Heavy", "😐 Neutral", "💪 Empowered"], key="growth_mood")
 
-        submitted = st.form_submit_button("📌 Save Entry")
+        submitted = st.form_submit_button("📌 Save Entry", key="save_journal_entry_button") # Added key
 
         if submitted:
             if entry.strip() == "":
@@ -199,7 +209,7 @@ if tool == "📘 Spiritual Growth Tracker":
                 st.rerun()
 
     # Show past entries
-    st.subheader("📚 Your Past Journal Entries")
+    st.markdown("### 📚 Your Past Journal Entries")
     cursor.execute("""
         SELECT id, entry, reflection, goal, mood, timestamp
         FROM growth_journal
@@ -208,22 +218,23 @@ if tool == "📘 Spiritual Growth Tracker":
     """, (st.session_state.user_id,))
     journal_entries = cursor.fetchall()
 
-    for i, (entry_id, entry, reflection, goal, mood, timestamp) in enumerate(journal_entries, 1):
-        with st.expander(f"📖 Entry #{i} – {timestamp}"):
-            st.markdown(f"**Mood:** {mood}")
-            st.markdown(f"**Entry:** {entry}")
-            st.markdown(f"**Reflection:** {reflection}")
-            st.markdown(f"**Goal:** {goal}")
+    if journal_entries:
+        for i, (entry_id, entry, reflection, goal, mood, timestamp) in enumerate(journal_entries, 1):
+            with st.expander(f"📖 Entry #{i} – {timestamp}"):
+                st.markdown(f"**Mood:** {mood}")
+                st.markdown(f"**Entry:** {entry}")
+                st.markdown(f"**Reflection:** {reflection}")
+                st.markdown(f"**Goal:** {goal}")
 
-            if st.button(f"❌ Delete Entry #{entry_id}", key=f"delete_entry_{entry_id}"):
-                cursor.execute("DELETE FROM growth_journal WHERE id = ?", (entry_id,))
-                conn.commit()
-                st.success("Entry deleted!")
-                st.rerun()
+                if st.button(f"❌ Delete Entry #{entry_id}", key=f"delete_journal_entry_{entry_id}"): # Unique key for delete button
+                    cursor.execute("DELETE FROM growth_journal WHERE id = ?", (entry_id,))
+                    conn.commit()
+                    st.success("Entry deleted!")
+                    st.rerun()
+    else:
+        st.info("No journal entries yet. Start by adding a new entry above!")
 
-# ---------------------------
-# 3. Verse Classifier
-# ---------------------------
+
 elif tool == "🔖 Verse Classifier":
     st.subheader("Classify a Bible Verse")
 
@@ -248,20 +259,14 @@ elif tool == "🔖 Verse Classifier":
             prediction = model.predict(X)[0]
             st.success(f"🧠 Detected Topic: **{prediction}**")
 
-# ---------------------------
-# 4. Daily Verse
-# ---------------------------
 elif tool == "🌅 Daily Verse":
     st.subheader("🌞 Your Daily Verse")
     verse = "“This is the day that the Lord has made; let us rejoice and be glad in it.” – Psalm 118:24"
     st.success(verse)
 
-# ---------------------------
-# 5. Spiritual Gifts Assessment
-# ---------------------------
 elif tool == "🧪 Spiritual Gifts Assessment":
-    if "user_id" not in st.session_state: # Check for user_id, not user_profile directly
-        st.warning("⚠️ Please create your discipleship profile before continuing.")
+    if "user_id" not in st.session_state:
+        st.warning("⚠️ Please log in or create your discipleship profile before continuing.")
         st.stop()
 
     # Load models
@@ -329,7 +334,7 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
                 label="⬇️ Download Your Gift Report",
                 data=report_content,
                 file_name=f"tukuza_spiritual_gifts_report_{st.session_state.user_profile.get('name', 'user').replace(' ', '_').lower()}.txt",
-                mime="text/plain", # Corrected from mime_type
+                mime="text/plain",
                 key="download_gift_report_button"
             )
         with col_buttons_2:
@@ -338,7 +343,7 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
                 conn.commit()
                 st.rerun()
         
-        st.stop() # Stop execution here if results are already shown.
+        st.stop()
 
     # If no results in DB, display the assessment form
     st.subheader("🧪 Spiritual Gifts Assessment")
@@ -426,9 +431,8 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
             except:
                 pass
 
-        submitted = st.form_submit_button(submit_text)
+        submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button_form") # Added a unique key
 
-        # Process submission directly within the form's context
         if submitted:
             try:
                 input_data = pd.DataFrame([responses], columns=[f"Q{i+1}" for i in range(len(responses))])
@@ -456,7 +460,6 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 
                 ministry_suggestions = recommend_ministries(primary, secondary, gift_ministry_map)
 
-                # Store results in SQLite
                 cursor.execute("""
                     INSERT INTO gift_assessments (user_id, primary_gift, secondary_gift, primary_role, secondary_role, ministries)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -466,21 +469,12 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
                     secondary,
                     primary_role,
                     secondary_role,
-                    json.dumps(ministry_suggestions) # Store list as JSON string
+                    json.dumps(ministry_suggestions)
                 ))
                 conn.commit()
-
-                # Display results (these will be shown immediately after submission)
-                st.success(f"🧠 Primary Spiritual Gift: {primary}")
-                st.info(f"🌟 Secondary Spiritual Gift: {secondary}")
-                st.markdown(f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}")
-                st.markdown("### 🚀 Suggested Ministry Pathways")
-                for i, role in enumerate(ministry_suggestions, 1):
-                    st.markdown(f"- {i}. **{role}**")
-                st.markdown("✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11")
                 
                 st.success("Your assessment has been saved!")
-                st.rerun() # Rerun to display the results and hide the form
+                st.rerun()
 
             except Exception as e:
                 st.error(f"⚠️ Error during prediction or saving: {e}")
@@ -488,5 +482,5 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 # ---------------------------
 # © Credit - Always show
 # ---------------------------
-    st.markdown("---")
-    st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
+st.markdown("---")
+st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
