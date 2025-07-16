@@ -122,9 +122,10 @@ else:
 st.markdown("### ✝️ Tukuza Yesu Toolkit")
 tool = st.selectbox("🛠️ Select a Tool", [
     "📖 BibleBot",
+    "📘 Spiritual Growth Tracker",
     "🔖 Verse Classifier",
     "🌅 Daily Verse",
-    "🧪 Spiritual Gifts Assessment"
+    "🧪 Spiritual Gifts Assessment",     
 ], index=0, key="tool_selector")
 
 # ---------------------------
@@ -132,6 +133,17 @@ tool = st.selectbox("🛠️ Select a Tool", [
 # ---------------------------
 if tool == "📖 BibleBot":
     biblebot_ui()
+
+# ---------------------------
+# 5. Spiritual Growth Tracker
+# ---------------------------
+elif tool == "📘 Spiritual Growth Tracker":
+    if "user_id" not in st.session_state:
+        st.warning("⚠️ Please create your discipleship profile before continuing.")
+        st.stop()
+
+    st.subheader("📘 Your Spiritual Growth Tracker (Coming Soon)")
+    st.info("This module will allow you to journal, set weekly goals, and reflect on your spiritual progress.")
 
 # ---------------------------
 # 2. Verse Classifier
