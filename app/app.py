@@ -4,14 +4,12 @@ import os
 import joblib
 import numpy as np
 import pandas as pd
+import sqlite3
 from streamlit_webrtc import webrtc_streamer
 import av
 import queue
 import sys
-# Removed email imports as they are no longer needed for this feature
-# import smtplib
-# from email.mime.text import MIMEText
-# from email.mime.multipart import MIMEMultipart
+import json # Import for handling JSON serialization of lists
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
@@ -40,17 +38,46 @@ class AudioProcessor:
         return frame
 
 # ---------------------------
-# Email Sending Function (REMOVED - NO LONGER NEEDED)
+# SQLite Setup
 # ---------------------------
-# def send_gift_report_email(...) -> Removed function
+# Use st.connection for better resource management in Streamlit Cloud
+# or ensure connection is handled correctly for multi-threading if not using st.connection
+# For simplicity, keeping your direct sqlite3.connect for now, but be aware of best practices
+conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
+cursor = conn.cursor()
+
+# Create table for user profiles if it doesn't exist
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    stage TEXT NOT NULL
+)
+""")
+
+# Create table for gift assessments if it doesn't exist
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS gift_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    primary_gift TEXT,
+    secondary_gift TEXT,
+    primary_role TEXT,
+    secondary_role TEXT,
+    ministries TEXT, -- Stored as JSON string
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user_profiles(id)
+)
+""")
+conn.commit() # Commit table creations
 
 # ---------------------------
 # App Config
 # ---------------------------
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
 
-# 🔐 Session-based user profile
-if "user_profile" not in st.session_state:
+# 🔐 User Registration UI
+if "user_id" not in st.session_state:
     st.subheader("👤 Create Your Discipleship Profile")
 
     col1, col2 = st.columns(2)
@@ -62,21 +89,32 @@ if "user_profile" not in st.session_state:
         ], key="profile_stage_select")
 
     if st.button("✅ Save Profile", key="save_profile_button"):
-        st.session_state.user_profile = {
-            "name": name,
-            "stage": stage,
-            "history": []
-        }
-        st.success("Profile created for this session!")
+        if name.strip() == "":
+            st.warning("Please enter your name to create a profile.")
+        else:
+            cursor.execute("INSERT INTO user_profiles (name, stage) VALUES (?, ?)", (name, stage))
+            conn.commit()
+            st.session_state.user_id = cursor.lastrowid
+            st.success("Profile saved successfully!")
+            st.rerun()
+else:
+    user_id = st.session_state.user_id
+    cursor.execute("SELECT name, stage FROM user_profiles WHERE id = ?", (user_id,))
+    user_data = cursor.fetchone()
+    if user_data:
+        st.session_state.user_profile = {"name": user_data[0], "stage": user_data[1]} # Load profile into session state
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.success(f"Welcome back, {user_data[0]} – {user_data[1]}")
+        with col2:
+            st.markdown("<div style='text-align:right'>🧭 Profile loaded</div>", unsafe_allow_html=True)
+    else:
+        # Handle case where user_id in session_state doesn't match a DB record (e.g., DB reset)
+        st.session_state.pop("user_id", None)
+        st.session_state.pop("user_profile", None)
+        st.warning("User profile not found. Please create a new one.")
         st.rerun()
 
-elif "user_profile" in st.session_state:
-    profile = st.session_state.user_profile
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.success(f"Welcome back, {profile['name']} – {profile['stage']}")
-    with col2:
-        st.markdown("<div style='text-align:right'>🧭 Profile loaded</div>", unsafe_allow_html=True)
 
 # ---------------------------
 # Sidebar Navigation
@@ -134,22 +172,33 @@ elif tool == "🌅 Daily Verse":
 # 4. Spiritual Gifts Assessment
 # ---------------------------
 elif tool == "🧪 Spiritual Gifts Assessment":
-    if "user_profile" not in st.session_state:
+    if "user_id" not in st.session_state: # Check for user_id, not user_profile directly
         st.warning("⚠️ Please create your discipleship profile before continuing.")
         st.stop()
 
+    # Load models
     model_path = os.path.join("models", "gift_model.pkl")
     if not os.path.exists(model_path):
         st.error("Spiritual gifts model file not found. Please ensure 'gift_model.pkl' is in the 'models' directory.")
         st.stop()
-
     model = joblib.load(model_path)
 
-    # Check if results exist and display them first, along with the clear and download buttons
-    if "gift_results" in st.session_state.user_profile:
-        gr = st.session_state.user_profile["gift_results"]
-        user_prof = st.session_state.user_profile # Get user profile for report
+    current_user_id = st.session_state.user_id
 
+    # Try to retrieve existing gift results from the database
+    cursor.execute("SELECT primary_gift, secondary_gift, primary_role, secondary_role, ministries FROM gift_assessments WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1", (current_user_id,))
+    db_gift_results = cursor.fetchone()
+
+    if db_gift_results:
+        # Reconstruct the dictionary from DB tuple
+        gr = {
+            "primary": db_gift_results[0],
+            "secondary": db_gift_results[1],
+            "primary_role": db_gift_results[2],
+            "secondary_role": db_gift_results[3],
+            "ministries": json.loads(db_gift_results[4]) if db_gift_results[4] else [] # Deserialize JSON
+        }
+        
         st.markdown("### 💡 Your Last Spiritual Gift Assessment")
         st.info(f"""
         - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})
@@ -159,12 +208,14 @@ elif tool == "🧪 Spiritual Gifts Assessment":
         for i, role in enumerate(gr.get("ministries", []), 1):
             st.markdown(f"- {i}. **{role}**")
 
-        # Prepare content for download
-        report_content = f"""
+        col_buttons_1, col_buttons_2 = st.columns(2)
+        with col_buttons_1:
+            # Prepare content for download
+            report_content = f"""
 Tukuza Yesu Spiritual Gifts Assessment Report
 
-User Name: {user_prof.get('name', 'N/A')}
-Faith Stage: {user_prof.get('stage', 'N/A')}
+User Name: {st.session_state.user_profile.get('name', 'N/A')}
+Faith Stage: {st.session_state.user_profile.get('stage', 'N/A')}
 
 ---
 
@@ -177,37 +228,31 @@ Your Spiritual Gift Assessment Results:
 
 🚀 Suggested Ministry Pathways:
 """
-        for i, role in enumerate(gr.get("ministries", []), 1):
-            report_content += f"- {i}. {role}\n"
+            for i, role in enumerate(gr.get("ministries", []), 1):
+                report_content += f"- {i}. {role}\n"
 
-        report_content += """
+            report_content += """
 ---
 "So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers..." – Ephesians 4:11
 
 Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 """
-        col_buttons_1, col_buttons_2 = st.columns(2)
-        with col_buttons_1:
-            import textwrap
-
-        report_content = textwrap.dedent(report_content)  # optional cleanup
-
-        st.download_button(
-            label="⬇️ Download Your Gift Report",
-            data=report_content,
-            file_name=f"tukuza_spiritual_gifts_report_{user_prof.get('name', 'user').replace(' ', '_').lower()}.txt",
-            mime="text/plain",  # ✅ this is correct
-            key="download_gift_report_button"
-        )
-
+            st.download_button(
+                label="⬇️ Download Your Gift Report",
+                data=report_content,
+                file_name=f"tukuza_spiritual_gifts_report_{st.session_state.user_profile.get('name', 'user').replace(' ', '_').lower()}.txt",
+                mime="text/plain", # Corrected from mime_type
+                key="download_gift_report_button"
+            )
         with col_buttons_2:
             if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
-                st.session_state.user_profile.pop("gift_results", None)
+                cursor.execute("DELETE FROM gift_assessments WHERE user_id = ?", (current_user_id,))
+                conn.commit()
                 st.rerun()
         
         st.stop() # Stop execution here if results are already shown.
 
-    # Display the assessment form if no gift_results exist
+    # If no results in DB, display the assessment form
     st.subheader("🧪 Spiritual Gifts Assessment")
 
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:", key="sample_lang_input_assessment")
@@ -284,7 +329,6 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
     st.caption(scale_instruction)
 
     with st.form("gift_assessment_form", clear_on_submit=True):
-        # Removed user_email input
         responses = [st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_slider_{i}") for i, q in enumerate(questions)]
 
         submit_text = "🎯 Discover My Spiritual Gift"
@@ -324,46 +368,37 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 
                 ministry_suggestions = recommend_ministries(primary, secondary, gift_ministry_map)
 
-                st.session_state.user_profile["gift_results"] = {
-                    "primary": primary,
-                    "secondary": secondary,
-                    "primary_role": primary_role,
-                    "secondary_role": secondary_role,
-                    "ministries": ministry_suggestions
-                }
+                # Store results in SQLite
+                cursor.execute("""
+                    INSERT INTO gift_assessments (user_id, primary_gift, secondary_gift, primary_role, secondary_role, ministries)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    current_user_id,
+                    primary,
+                    secondary,
+                    primary_role,
+                    secondary_role,
+                    json.dumps(ministry_suggestions) # Store list as JSON string
+                ))
+                conn.commit()
 
-                result_msg = f"🧠 Primary Spiritual Gift: {primary}"
-                secondary_msg = f"🌟 Secondary Spiritual Gift: {secondary}"
-                role_msg = f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}"
-                verse_msg = "✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11"
-
-                if user_lang != "en":
-                    try:
-                        result_msg = GoogleTranslator(source="en", target=user_lang).translate(result_msg)
-                        secondary_msg = GoogleTranslator(source="en", target=user_lang).translate(secondary_msg)
-                        role_msg = GoogleTranslator(source="en", target=user_lang).translate(role_msg)
-                        verse_msg = GoogleTranslator(source="en", target=user_lang).translate(verse_msg)
-                    except:
-                        pass
-
-                st.success(result_msg)
-                st.info(secondary_msg)
-                st.markdown(role_msg)
-                st.markdown(verse_msg)
-
+                # Display results (these will be shown immediately after submission)
+                st.success(f"🧠 Primary Spiritual Gift: {primary}")
+                st.info(f"🌟 Secondary Spiritual Gift: {secondary}")
+                st.markdown(f"👑 Fivefold Roles: Primary – {primary_role} | Secondary – {secondary_role}")
                 st.markdown("### 🚀 Suggested Ministry Pathways")
                 for i, role in enumerate(ministry_suggestions, 1):
                     st.markdown(f"- {i}. **{role}**")
-
-                # Email sending logic removed. Download option will be shown after rerun.
-
-                st.rerun() # Rerun to display the results and the download button
+                st.markdown("✝️ 'So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers...' – Ephesians 4:11")
+                
+                st.success("Your assessment has been saved!")
+                st.rerun() # Rerun to display the results and hide the form
 
             except Exception as e:
-                st.error(f"⚠️ Error during prediction: {e}")
+                st.error(f"⚠️ Error during prediction or saving: {e}")
 
 # ---------------------------
 # © Credit - Always show
 # ---------------------------
 st.markdown("---")
-st.caption("Built by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
+st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
