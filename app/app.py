@@ -41,20 +41,32 @@ class AudioProcessor:
 # SQLite Setup
 # ---------------------------
 # 💻 Developer Tool - Reset DB (Optional)
+# ---------------------------
+# SQLite Setup
+# ---------------------------
+conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
+cursor = conn.cursor()
+
+# ---------------------------
+# Developer Reset DB Option
+# ---------------------------
 with st.sidebar.expander("⚙️ Developer Tools"):
     if st.button("🚨 Reset Discipleship DB (Dev Only)"):
-        conn.close()  # Close connection to unlock file
+        try:
+            conn.close()
+        except:
+            pass
         if os.path.exists("discipleship_agent.db"):
             os.remove("discipleship_agent.db")
             st.success("Database deleted. Please reload the app.")
             st.stop()
         else:
             st.warning("No existing DB found to delete.")
-# Initialize SQLite connection
 
 
-conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
-cursor = conn.cursor()
+
+#conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
+#cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_profiles (
