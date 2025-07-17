@@ -431,7 +431,7 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
             except:
                 pass
 
-        submitted = st.form_submit_button(submit_text) # Added a unique key
+        submitted = st.form_submit_button("submit_text") # Added a unique key
 
         if submitted:
             try:
