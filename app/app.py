@@ -12,7 +12,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
 from langdetect import detect
 from deep_translator import GoogleTranslator
-from transformers import pipeline
 
 # 🌍 Translation Functions
 def translate_user_input(text, target_lang="en"):
