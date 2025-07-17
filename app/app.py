@@ -68,10 +68,10 @@ sentiment_analyzer = load_sentiment_model()
 @st.cache_resource
 def initialize_database():
     conn = get_db_connection() # Get the cached connection
-    c = conn.cursor()
+    cursor = conn.cursor()
 
     # Create user_profiles table if it doesn't exist
-    c.execute("""
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS user_profiles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
@@ -80,7 +80,7 @@ def initialize_database():
     """)
 
     # Create gift_assessments table if it doesn't exist
-    c.execute("""
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS gift_assessments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -95,7 +95,7 @@ def initialize_database():
     """)
 
     # Create growth_journal table if it doesn't exist
-    c.execute('''
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS growth_journal (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -110,7 +110,7 @@ def initialize_database():
 
     # Add the sentiment column to growth_journal if it doesn't already exist
     try:
-        c.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
+        cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
         conn.commit() # Commit changes to the schema
         st.success("Database schema updated: 'sentiment' column added to growth_journal.")
     except sqlite3.OperationalError as e:
@@ -143,7 +143,8 @@ if "user_id" not in st.session_state:
     st.subheader("👤 Login or Create Your Discipleship Profile")
 
     login_tab, register_tab = st.tabs(["Login", "Register New Profile"])
-
+    conn = get_db_connection() # Get the cached connection
+    cursor = conn.cursor()     # Get a cursor for this operation
     with login_tab:
         st.markdown("### Existing User Login")
         # Fetch existing users to allow selection
