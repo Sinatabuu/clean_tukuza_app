@@ -89,6 +89,33 @@ CREATE TABLE IF NOT EXISTS growth_journal (
 )
 """)
 conn.commit()
+
+c.execute('''
+    CREATE TABLE IF NOT EXISTS growth_journal (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        entry TEXT,
+        reflection TEXT,
+        goal TEXT,
+        mood TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES user_profiles(id)
+    )
+''')
+
+# Add the sentiment column to growth_journal if it doesn't already exist
+try:
+    c.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
+    conn.commit()
+    st.success("Database schema updated: 'sentiment' column added to growth_journal.")
+except sqlite3.OperationalError as e:
+    if "duplicate column name" in str(e).lower():
+        pass # Column already exists, no need to do anything
+    else:
+        st.warning(f"Could not add sentiment column to growth_journal: {e}")
+
+conn.close() # Close connection after setup
+
 # ---------------------------
 # App Config
 # ---------------------------
