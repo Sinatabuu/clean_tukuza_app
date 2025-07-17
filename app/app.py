@@ -49,7 +49,8 @@ def get_db_connection():
     except sqlite3.OperationalError as e:
         st.error(f"Failed to connect to database at {db_file}: {e}. Check file permissions or path.")
         st.stop() # Stop the app if DB connection fails
-
+setup_conn = get_db_connection() # Get a connection specifically for setup
+setup_cursor = setup_conn.cursor() # Get a cursor for setup operations
 
 # Create tables if they don't exist
 # This block remains the same. It will run after the connection is established.
