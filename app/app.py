@@ -105,7 +105,7 @@ cursor.execute('''
 
 # Add the sentiment column to growth_journal if it doesn't already exist
 try:
-    cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
+    c.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
     conn.commit()
     st.success("Database schema updated: 'sentiment' column added to growth_journal.")
 except sqlite3.OperationalError as e:
@@ -114,6 +114,18 @@ except sqlite3.OperationalError as e:
     else:
         st.warning(f"Could not add sentiment column to growth_journal: {e}")
 
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# REMOVE OR COMMENT OUT THIS LINE:
+# conn.close() # <--- DELETE THIS LINE OR CHANGE TO # conn.close()
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+# The global 'conn' and 'cursor' objects should be initialized *once*
+# from the cached connection, and *not* closed here.
+# The get_db_connection() function will manage the connection life-cycle
+# thanks to @st.cache_resource.
+
+# Ensure you have these lines *after* the setup block to define the global conn/cursor
+# These lines are typically where your traceback points (around line 52-53)
 conn = get_db_connection() # This will now retrieve the *open*, cached connection
 cursor = conn.cursor()
 
