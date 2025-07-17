@@ -33,15 +33,13 @@ def translate_bot_response(text, target_lang):
 def get_db_connection():
     # Determine the database file path based on environment
     # On Streamlit Community Cloud, /tmp/ is the only guaranteed writable location
-    # for temporary files.
+    # for temporary files. Data in /tmp/ is non-persistent across deployments/restarts.
     # The 'STREAMLIT_SERVER_ENVIRONMENT' env var is a common way to detect cloud env.
     if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
         db_file = "/tmp/discipleship_agent.db"
     else:
-        # For local development, keep it in the current directory or a 'data' subfolder
-        # You might even prefer 'os.path.join(os.path.dirname(__file__), "discipleship_agent.db")'
-        # to ensure it's always relative to app.py
-        db_file = "discipleship_agent.db" 
+        # For local development, keep it in the current directory (app/ folder)
+        db_file = os.path.join(os.path.dirname(__file__), "discipleship_agent.db") 
 
     try:
         conn = sqlite3.connect(db_file, check_same_thread=False)
@@ -50,7 +48,6 @@ def get_db_connection():
     except sqlite3.OperationalError as e:
         st.error(f"Failed to connect to database at {db_file}: {e}. Check file permissions or path.")
         st.stop() # Stop the app if DB connection fails
-
 conn = get_db_connection()
 cursor = conn.cursor()
 
