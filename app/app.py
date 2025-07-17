@@ -114,7 +114,8 @@ except sqlite3.OperationalError as e:
     else:
         st.warning(f"Could not add sentiment column to growth_journal: {e}")
 
-conn.close() # Close connection after setup
+conn = get_db_connection() # This will now retrieve the *open*, cached connection
+cursor = conn.cursor()
 
 # ---------------------------
 # App Config
