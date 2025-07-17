@@ -185,7 +185,7 @@ elif tool == "📘 Spiritual Growth Tracker":
         goal = st.text_input("🎯 Set a goal for your spiritual walk this week", key="growth_goal")
         mood = st.selectbox("😌 Mood", ["😊 Joyful", "🙏 Thankful", "😢 Heavy", "😐 Neutral", "💪 Empowered"], key="growth_mood")
 
-        submitted = st.form_submit_button("📌 Save Entry", key="save_journal_entry_button")
+        submitted = st.form_submit_button("📌 Save Entry")
 
         if submitted:
             if entry.strip() == "":
