@@ -420,7 +420,7 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
             except:
                 pass
 
-        submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button_form")
+        submitted = st.form_submit_button("submit_text")
 
         if submitted:
             try:
