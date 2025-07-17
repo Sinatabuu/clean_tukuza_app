@@ -139,12 +139,13 @@ initialize_database()
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
 
 # 🔐 User Management (Login/Registration UI)
+conn = get_db_connection() # Get the cached connection
+cursor = conn.cursor()     # Get a cursor for this operation
 if "user_id" not in st.session_state:
     st.subheader("👤 Login or Create Your Discipleship Profile")
 
     login_tab, register_tab = st.tabs(["Login", "Register New Profile"])
-    conn = get_db_connection() # Get the cached connection
-    cursor = conn.cursor()     # Get a cursor for this operation
+    
     with login_tab:
         st.markdown("### Existing User Login")
         # Fetch existing users to allow selection
