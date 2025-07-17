@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS growth_journal (
 """)
 conn.commit()
 
-c.execute('''
+cursor.execute('''
     CREATE TABLE IF NOT EXISTS growth_journal (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
