@@ -6,3 +6,8 @@ joblib
 scikit-learn
 streamlit-webrtc
 streamlit>=1.20.0
+sqlite3
+numpy
+pandas
+transformers
+torch # Or tensorflow, depending on your choice
