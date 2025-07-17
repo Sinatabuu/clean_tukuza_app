@@ -12,6 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from modules.biblebot_ui import biblebot_ui
 from langdetect import detect
 from deep_translator import GoogleTranslator
+from transformers import pipeline
 
 # 🌍 Translation Functions
 def translate_user_input(text, target_lang="en"):
@@ -231,29 +232,56 @@ elif tool == "📘 Spiritual Growth Tracker":
         st.info("No journal entries yet. Start by adding a new entry above!")
 
 
+# Inside your app.py, typically near the top or within the classifier tool section
+# and outside any form/button logic so it initializes once.
+
+# ---------------------------
+# Verse Classifier (Enhanced with Hugging Face)
+# ---------------------------
 elif tool == "🔖 Verse Classifier":
     st.subheader("Classify a Bible Verse")
 
-    model_path = os.path.join("models", "model.pkl")
-    vectorizer_path = os.path.join("models", "vectorizer.pkl")
+    # @st.cache_resource decorator ensures the model is loaded only once
+    @st.cache_resource
+    def load_classifier_model():
+        # You can try different text classification models from Hugging Face Hub.
+        # 'cardiffnlp/twitter-roberta-base-sentiment-latest' is good for general sentiment,
+        # but for broader topics, you might need to experiment or fine-tune.
+        # Let's use a robust general purpose classifier for now.
+        # If you want more specific categories than sentiment, you'd define them for Zero-Shot.
 
-    if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
-        st.error("Model files not found. Please ensure 'model.pkl' and 'vectorizer.pkl' are in the 'models' directory.")
-        st.stop()
+        # Option 1: Basic sentiment (e.g., positive/negative/neutral)
+        # This is a general sentiment classifier, not topic specific
+        # return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
 
-    model = joblib.load(model_path)
-    vectorizer = joblib.load(vectorizer_path)
+        # Option 2: Zero-shot classification (more flexible for custom topics)
+        # This allows you to define the topics at runtime.
+        return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
-    st.write("🧠 Model can detect these topics:", model.classes_)
+
+    classifier = load_classifier_model()
+
+    st.write("🧠 Using a Hugging Face model for classification.")
+    # If using zero-shot, define candidate labels for topics
+    candidate_labels = ["faith", "love", "hope", "salvation", "guidance", "suffering", "peace", "justice", "community", "forgiveness"]
+    st.write(f"Considered Topics: {', '.join(candidate_labels)}")
 
     verse = st.text_area("Paste a Bible verse here:", key="verse_classifier_input")
     if st.button("Classify", key="classify_button"):
         if verse.strip() == "":
             st.warning("Please enter a verse.")
         else:
-            X = vectorizer.transform([verse])
-            prediction = model.predict(X)[0]
-            st.success(f"🧠 Detected Topic: **{prediction}**")
+            # If using sentiment-analysis pipeline (Option 1 above):
+            # prediction = classifier(verse)[0]
+            # st.success(f"🧠 Detected Sentiment: **{prediction['label']}** (Score: {prediction['score']:.2f})")
+
+            # If using zero-shot-classification pipeline (Option 2 above):
+            result = classifier(verse, candidate_labels=candidate_labels, multi_label=False)
+            # The result will be sorted by score, so the first one is the best match
+            predicted_topic = result['labels'][0]
+            score = result['scores'][0]
+            st.success(f"🧠 Predicted Topic: **{predicted_topic}** (Confidence: {score:.2f})")
+            st.info(f"Top 3 predictions: {result['labels'][0]} ({result['scores'][0]:.2f}), {result['labels'][1]} ({result['scores'][1]:.2f}), {result['labels'][2]} ({result['scores'][2]:.2f})")
 
 elif tool == "🌅 Daily Verse":
     st.subheader("🌞 Your Daily Verse")
