@@ -1,20 +1,15 @@
 import streamlit as st
-from openai import OpenAI # Assuming OpenAI client is used in biblebot_ui
+from openai import OpenAI
 import os
 import joblib
 import numpy as np
 import pandas as pd
 import sqlite3
-# Removed unused imports if voice input is not actively used:
-# from streamlit_webrtc import webrtc_streamer
-# import av
-# import queue
 import sys
-import json # Already imported, good for handling JSON serialization of lists
+import json
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from modules.biblebot_ui import biblebot_ui # Assuming this module uses OpenAI
-
+from modules.biblebot_ui import biblebot_ui
 from langdetect import detect
 from deep_translator import GoogleTranslator
 
@@ -31,23 +26,21 @@ def translate_bot_response(text, target_lang):
         return GoogleTranslator(source='en', target=target_lang).translate(text)
     return text
 
-# 🎤 Voice Input Setup (Commented out if not actively used)
-# audio_queue = queue.Queue()
-# class AudioProcessor:
-#     def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
-#         audio_queue.put(frame.to_ndarray().flatten().astype("float32").tobytes())
-#         return frame
-
 # ---------------------------
 # SQLite Setup
 # ---------------------------
-# Use st.cache_resource for efficient database connection management.
-# This ensures the connection is only created once and reused across reruns.
 @st.cache_resource
 def get_db_connection():
-    conn = sqlite3.connect("discipleship_agent.db", check_same_thread=False)
-    # Set row_factory to sqlite3.Row for dictionary-like access to rows
-    # conn.row_factory = sqlite3.Row # Uncomment if you prefer dict-like access
+    # Determine the database file path based on environment
+    if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
+        # On Streamlit Community Cloud, /tmp/ is the only guaranteed writable location
+        db_file = "/tmp/discipleship_agent.db"
+    else:
+        # For local development, keep it in the current directory
+        db_file = "discipleship_agent.db"
+
+    conn = sqlite3.connect(db_file, check_same_thread=False)
+    conn.row_factory = sqlite3.Row # Optional: for dict-like access to rows
     return conn
 
 conn = get_db_connection()
@@ -57,7 +50,7 @@ cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE, -- Added UNIQUE constraint for name
+    name TEXT NOT NULL UNIQUE,
     stage TEXT NOT NULL
 )
 """)
@@ -70,7 +63,7 @@ CREATE TABLE IF NOT EXISTS gift_assessments (
     secondary_gift TEXT,
     primary_role TEXT,
     secondary_role TEXT,
-    ministries TEXT, -- Stored as JSON string
+    ministries TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user_profiles(id)
 )
@@ -88,7 +81,7 @@ CREATE TABLE IF NOT EXISTS growth_journal (
     FOREIGN KEY (user_id) REFERENCES user_profiles(id)
 )
 """)
-conn.commit() # Commit table creations
+conn.commit()
 
 # ---------------------------
 # App Config
@@ -142,12 +135,11 @@ else:
     cursor.execute("SELECT name, stage FROM user_profiles WHERE id = ?", (user_id,))
     user_data = cursor.fetchone()
     if user_data:
-        st.session_state.user_profile = {"name": user_data[0], "stage": user_data[1]} # Load profile into session state
+        st.session_state.user_profile = {"name": user_data[0], "stage": user_data[1]}
         col1, col2 = st.columns([2, 1])
         with col1:
             st.success(f"Welcome back, **{user_data[0]}** – {user_data[1]}")
         with col2:
-            # Added a logout button for convenience
             if st.button("↩️ Logout", key="logout_button"):
                 st.session_state.pop("user_id", None)
                 st.session_state.pop("user_profile", None)
@@ -155,7 +147,6 @@ else:
                 st.rerun()
             st.markdown("<div style='text-align:right'>🧭 Profile loaded</div>", unsafe_allow_html=True)
     else:
-        # Handle case where user_id in session_state doesn't match a DB record (e.g., DB reset)
         st.session_state.pop("user_id", None)
         st.session_state.pop("user_profile", None)
         st.warning("User profile not found. Please create a new one.")
@@ -168,7 +159,7 @@ else:
 st.markdown("### ✝️ Tukuza Yesu Toolkit")
 tool = st.selectbox("🛠️ Select a Tool", [
     "📖 BibleBot",
-    "📘 Spiritual Growth Tracker", # Moved up for logical flow as it's a new feature
+    "📘 Spiritual Growth Tracker",
     "🔖 Verse Classifier",
     "🌅 Daily Verse",
     "🧪 Spiritual Gifts Assessment"
@@ -194,7 +185,7 @@ elif tool == "📘 Spiritual Growth Tracker":
         goal = st.text_input("🎯 Set a goal for your spiritual walk this week", key="growth_goal")
         mood = st.selectbox("😌 Mood", ["😊 Joyful", "🙏 Thankful", "😢 Heavy", "😐 Neutral", "💪 Empowered"], key="growth_mood")
 
-        submitted = st.form_submit_button("📌 Save Entry") # Added key
+        submitted = st.form_submit_button("📌 Save Entry", key="save_journal_entry_button")
 
         if submitted:
             if entry.strip() == "":
@@ -226,7 +217,7 @@ elif tool == "📘 Spiritual Growth Tracker":
                 st.markdown(f"**Reflection:** {reflection}")
                 st.markdown(f"**Goal:** {goal}")
 
-                if st.button(f"❌ Delete Entry #{entry_id}", key=f"delete_journal_entry_{entry_id}"): # Unique key for delete button
+                if st.button(f"❌ Delete Entry #{entry_id}", key=f"delete_journal_entry_{entry_id}"):
                     cursor.execute("DELETE FROM growth_journal WHERE id = ?", (entry_id,))
                     conn.commit()
                     st.success("Entry deleted!")
@@ -289,7 +280,7 @@ elif tool == "🧪 Spiritual Gifts Assessment":
             "secondary": db_gift_results[1],
             "primary_role": db_gift_results[2],
             "secondary_role": db_gift_results[3],
-            "ministries": json.loads(db_gift_results[4]) if db_gift_results[4] else [] # Deserialize JSON
+            "ministries": json.loads(db_gift_results[4]) if db_gift_results[4] else []
         }
         
         st.markdown("### 💡 Your Last Spiritual Gift Assessment")
@@ -303,7 +294,6 @@ elif tool == "🧪 Spiritual Gifts Assessment":
 
         col_buttons_1, col_buttons_2 = st.columns(2)
         with col_buttons_1:
-            # Prepare content for download
             report_content = f"""
 Tukuza Yesu Spiritual Gifts Assessment Report
 
@@ -345,7 +335,6 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
         
         st.stop()
 
-    # If no results in DB, display the assessment form
     st.subheader("🧪 Spiritual Gifts Assessment")
 
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:", key="sample_lang_input_assessment")
@@ -431,7 +420,7 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
             except:
                 pass
 
-        submitted = st.form_submit_button("submit_text") # Added a unique key
+        submitted = st.form_submit_button(submit_text, key="submit_gift_assessment_button_form")
 
         if submitted:
             try:
