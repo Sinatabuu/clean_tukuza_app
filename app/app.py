@@ -30,104 +30,108 @@ def translate_bot_response(text, target_lang):
 # ---------------------------
 # SQLite Setup
 # ---------------------------
+
 @st.cache_resource
 def get_db_connection():
-    # Determine the database file path based on environment
-    # On Streamlit Community Cloud, /tmp/ is the only guaranteed writable location
-    # for temporary files. Data in /tmp/ is non-persistent across deployments/restarts.
-    # The 'STREAMLIT_SERVER_ENVIRONMENT' env var is a common way to detect cloud env.
     if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
         db_file = "/tmp/discipleship_agent.db"
     else:
-        # For local development, keep it in the current directory (app/ folder)
-        db_file = os.path.join(os.path.dirname(__file__), "discipleship_agent.db") 
+        db_file = os.path.join(os.path.dirname(__file__), "discipleship_agent.db")
 
     try:
         conn = sqlite3.connect(db_file, check_same_thread=False)
-        conn.row_factory = sqlite3.Row # Optional: for dict-like access to rows
+        conn.row_factory = sqlite3.Row
         return conn
     except sqlite3.OperationalError as e:
         st.error(f"Failed to connect to database at {db_file}: {e}. Check file permissions or path.")
-        st.stop() # Stop the app if DB connection fails
-setup_conn = get_db_connection() # Get a connection specifically for setup
-setup_cursor = setup_conn.cursor() # Get a cursor for setup operations
+        st.stop()
 
-# Create tables if they don't exist
-# This block remains the same. It will run after the connection is established.
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS user_profiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    stage TEXT NOT NULL
-)
-""")
+# ---------------------------
+# Hugging Face Model Loaders (Remain as is)
+# ---------------------------
+@st.cache_resource
+def load_classifier_model():
+    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS gift_assessments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    primary_gift TEXT,
-    secondary_gift TEXT,
-    primary_role TEXT,
-    secondary_role TEXT,
-    ministries TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user_profiles(id)
-)
-""")
+@st.cache_resource
+def load_sentiment_model():
+    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS growth_journal (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    entry TEXT,
-    reflection TEXT,
-    goal TEXT,
-    mood TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user_profiles(id)
-)
-""")
-conn.commit()
+# Call the HF model loaders once when the app starts
+classifier = load_classifier_model()
+sentiment_analyzer = load_sentiment_model()
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS growth_journal (
+
+# ---------------------------
+# NEW: Database Schema Initialization (Wrapped in a cached function)
+# ---------------------------
+@st.cache_resource
+def initialize_database():
+    conn = get_db_connection() # Get the cached connection
+    c = conn.cursor()
+
+    # Create user_profiles table if it doesn't exist
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS user_profiles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        stage TEXT NOT NULL
+    )
+    """)
+
+    # Create gift_assessments table if it doesn't exist
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS gift_assessments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
-        entry TEXT,
-        reflection TEXT,
-        goal TEXT,
-        mood TEXT,
+        primary_gift TEXT,
+        secondary_gift TEXT,
+        primary_role TEXT,
+        secondary_role TEXT,
+        ministries TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES user_profiles(id)
     )
-''')
+    """)
 
-# Add the sentiment column to growth_journal if it doesn't already exist
-try:
-    cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
-    conn.commit()
-    st.success("Database schema updated: 'sentiment' column added to growth_journal.")
-except sqlite3.OperationalError as e:
-    if "duplicate column name" in str(e).lower():
-        pass # Column already exists, no need to do anything
-    else:
-        st.warning(f"Could not add sentiment column to growth_journal: {e}")
+    # Create growth_journal table if it doesn't exist
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS growth_journal (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            entry TEXT,
+            reflection TEXT,
+            goal TEXT,
+            mood TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES user_profiles(id)
+        )
+    ''')
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# REMOVE OR COMMENT OUT THIS LINE:
-# conn.close() # <--- DELETE THIS LINE OR CHANGE TO # conn.close()
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # Add the sentiment column to growth_journal if it doesn't already exist
+    try:
+        c.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
+        conn.commit() # Commit changes to the schema
+        st.success("Database schema updated: 'sentiment' column added to growth_journal.")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e).lower():
+            pass # Column already exists, no need to do anything
+        else:
+            st.warning(f"Could not add sentiment column to growth_journal: {e}")
 
-# The global 'conn' and 'cursor' objects should be initialized *once*
-# from the cached connection, and *not* closed here.
-# The get_db_connection() function will manage the connection life-cycle
-# thanks to @st.cache_resource.
+    # IMPORTANT: Do NOT close the connection here. It's cached and needed by other parts of the app.
+    # The 'conn' and 'c' variables here are local to initialize_database().
+    return True # Return anything to indicate success (Streamlit caches return values)
 
-# Ensure you have these lines *after* the setup block to define the global conn/cursor
-# These lines are typically where your traceback points (around line 52-53)
-conn = get_db_connection() # This will now retrieve the *open*, cached connection
-cursor = conn.cursor()
+# ---------------------------
+# Call the database initialization function once at app start
+# ---------------------------
+initialize_database()
+
+# ---------------------------
+# Your main Streamlit UI code starts here...
+# (e.g., if 'user_id' not in st.session_state:, etc.)
+# ---------------------------
 
 # ---------------------------
 # App Config
