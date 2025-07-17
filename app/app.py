@@ -238,7 +238,8 @@ elif tool == "📘 Spiritual Growth Tracker":
         mood = st.selectbox("😌 Mood", ["😊 Joyful", "🙏 Thankful", "😢 Heavy", "😐 Neutral", "💪 Empowered"], key="growth_mood")
 
         submitted = st.form_submit_button("📌 Save Entry")
-
+        conn = get_db_connection() # Get the cached connection
+        cursor = conn.cursor()     # Get a cursor for this operation
         if submitted:
             if entry.strip() == "":
                 st.warning("Please write something in your journal entry.")
