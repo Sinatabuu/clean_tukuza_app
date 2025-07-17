@@ -105,7 +105,7 @@ cursor.execute('''
 
 # Add the sentiment column to growth_journal if it doesn't already exist
 try:
-    c.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
+    cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
     conn.commit()
     st.success("Database schema updated: 'sentiment' column added to growth_journal.")
 except sqlite3.OperationalError as e:
