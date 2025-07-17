@@ -32,21 +32,30 @@ def translate_bot_response(text, target_lang):
 @st.cache_resource
 def get_db_connection():
     # Determine the database file path based on environment
+    # On Streamlit Community Cloud, /tmp/ is the only guaranteed writable location
+    # for temporary files.
+    # The 'STREAMLIT_SERVER_ENVIRONMENT' env var is a common way to detect cloud env.
     if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
-        # On Streamlit Community Cloud, /tmp/ is the only guaranteed writable location
         db_file = "/tmp/discipleship_agent.db"
     else:
-        # For local development, keep it in the current directory
-        db_file = "discipleship_agent.db"
+        # For local development, keep it in the current directory or a 'data' subfolder
+        # You might even prefer 'os.path.join(os.path.dirname(__file__), "discipleship_agent.db")'
+        # to ensure it's always relative to app.py
+        db_file = "discipleship_agent.db" 
 
-    conn = sqlite3.connect(db_file, check_same_thread=False)
-    conn.row_factory = sqlite3.Row # Optional: for dict-like access to rows
-    return conn
+    try:
+        conn = sqlite3.connect(db_file, check_same_thread=False)
+        conn.row_factory = sqlite3.Row # Optional: for dict-like access to rows
+        return conn
+    except sqlite3.OperationalError as e:
+        st.error(f"Failed to connect to database at {db_file}: {e}. Check file permissions or path.")
+        st.stop() # Stop the app if DB connection fails
 
 conn = get_db_connection()
 cursor = conn.cursor()
 
 # Create tables if they don't exist
+# This block remains the same. It will run after the connection is established.
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +91,6 @@ CREATE TABLE IF NOT EXISTS growth_journal (
 )
 """)
 conn.commit()
-
 # ---------------------------
 # App Config
 # ---------------------------
