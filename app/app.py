@@ -31,79 +31,150 @@ def translate_bot_response(text, target_lang):
 # SQLite Setup
 # ---------------------------
 
-@st.cache_resource
-def initialize_database():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+# ... (Your imports at the top, including os, sqlite3, streamlit, etc.) ...
+from transformers import pipeline
 
-    # Create the schema_migrations table to track DB version
+# ---------------------------
+# SQLite Connection Manager (Remains as is)
+# ---------------------------
+@st.cache_resource
+def get_db_connection():
+    conn = get_db_connection()
+    run_schema_upgrades()  # 🔧 Ensure DB is ready before anything else
+
+    if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
+        db_file = "/tmp/discipleship_agent.db"
+    else:
+        db_file = os.path.join(os.path.dirname(__file__), "discipleship_agent.db")
+
+    try:
+        conn = sqlite3.connect(db_file, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except sqlite3.OperationalError as e:
+        st.error(f"Failed to connect to database at {db_file}: {e}. Check file permissions or path.")
+        st.stop()
+
+# ---------------------------
+# Hugging Face Model Loaders (Remain as is)
+# ---------------------------
+@st.cache_resource
+def load_classifier_model():
+    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+
+@st.cache_resource
+def load_sentiment_model():
+    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+# Call the HF model loaders once when the app starts
+classifier = load_classifier_model()
+sentiment_analyzer = load_sentiment_model()
+
+
+# ---------------------------
+# NEW: Database Schema Initialization (Wrapped in a cached function)
+# ---------------------------
+@st.cache_resource
+def get_db_connection():
+    import os
+    import sqlite3
+
+    if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
+        db_file = "/tmp/discipleship_agent.db"
+    else:
+        db_file = os.path.join(os.path.dirname(__file__), "discipleship_agent.db")
+
+    try:
+        conn = sqlite3.connect(db_file, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except sqlite3.OperationalError as e:
+        st.error(f"❌ Failed to connect to database at {db_file}: {e}")
+        st.stop()
+
+# Schema Version Management
+# ---------------------------
+    def get_schema_version(cursor):
+            cursor.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER)")
+            cursor.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
+            row = cursor.fetchone()
+            return row[0] if row else 0
+
+    def set_schema_version(cursor, version):
+            cursor.execute("DELETE FROM schema_version")
+            cursor.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
+
+    # ---------------------------
+# Table Creation Functions
+# ---------------------------
+def create_user_profiles_table(cursor):
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-        version INTEGER PRIMARY KEY
+    CREATE TABLE IF NOT EXISTS user_profiles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        stage TEXT NOT NULL
     )
     """)
-    conn.commit()
 
-    cursor.execute("SELECT MAX(version) FROM schema_migrations")
-    row = cursor.fetchone()
-    current_version = row[0] if row[0] is not None else 0
+def create_gift_assessments_table(cursor):
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS gift_assessments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        primary_gift TEXT,
+        secondary_gift TEXT,
+        primary_role TEXT,
+        secondary_role TEXT,
+        ministries TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES user_profiles(id)
+    )
+    """)
 
-    # ----- v1: Base tables -----
+def create_growth_journal_table(cursor):
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS growth_journal (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        entry TEXT,
+        reflection TEXT,
+        goal TEXT,
+        mood TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES user_profiles(id)
+    )
+    """)
+
+
+def run_schema_upgrades():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    current_version = get_db_version()
+
     if current_version < 1:
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS user_profiles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            stage TEXT NOT NULL
-        )
-        """)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS gift_assessments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            primary_gift TEXT,
-            secondary_gift TEXT,
-            primary_role TEXT,
-            secondary_role TEXT,
-            ministries TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES user_profiles(id)
-        )
-        """)
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS growth_journal (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            entry TEXT,
-            reflection TEXT,
-            goal TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES user_profiles(id)
-        )
-        ''')
-        cursor.execute("INSERT INTO schema_migrations (version) VALUES (1)")
-        conn.commit()
+        create_user_profiles_table(cursor)
+        create_gift_assessments_table(cursor)
+        create_growth_journal_table(cursor)
+        set_db_version(1)
+        st.info("✅ Initialized database schema to version 1.")
 
-    # ----- v2: Add 'mood' column -----
     if current_version < 2:
-        cursor.execute("PRAGMA table_info(growth_journal)")
-        columns = [col[1] for col in cursor.fetchall()]
-        if "mood" not in columns:
-            cursor.execute("ALTER TABLE growth_journal ADD COLUMN mood TEXT")
-        cursor.execute("INSERT INTO schema_migrations (version) VALUES (2)")
-        conn.commit()
-
-    # ----- v3: Add 'sentiment' column -----
-    if current_version < 3:
-        cursor.execute("PRAGMA table_info(growth_journal)")
-        columns = [col[1] for col in cursor.fetchall()]
-        if "sentiment" not in columns:
+        # Add sentiment column to growth_journal
+        try:
             cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
-        cursor.execute("INSERT INTO schema_migrations (version) VALUES (3)")
-        conn.commit()
+            conn.commit()
+            st.success("🔁 Upgraded DB schema to version 2 (added 'sentiment' column).")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" in str(e).lower():
+                st.warning("⚠️ 'sentiment' column already exists. Skipping.")
+            else:
+                st.error(f"DB upgrade error: {e}")
+        set_db_version(2)
 
-    return True
-
+    # Future versions can be added here:
+    # if current_version < 3:
+    #     ...
+    conn.close()
 # ---------------------------
 # App Config
 # ---------------------------
