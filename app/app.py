@@ -76,9 +76,6 @@ sentiment_analyzer = load_sentiment_model()
 # ---------------------------
 @st.cache_resource
 def get_db_connection():
-    import os
-    import sqlite3
-
     if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
         db_file = "/tmp/discipleship_agent.db"
     else:
@@ -91,6 +88,8 @@ def get_db_connection():
     except sqlite3.OperationalError as e:
         st.error(f"❌ Failed to connect to database at {db_file}: {e}")
         st.stop()
+
+    run_schema_upgrades()
 
 # Schema Version Management
 # ---------------------------
