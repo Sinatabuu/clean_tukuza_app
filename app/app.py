@@ -32,106 +32,77 @@ def translate_bot_response(text, target_lang):
 # ---------------------------
 
 @st.cache_resource
-def get_db_connection():
-    if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
-        db_file = "/tmp/discipleship_agent.db"
-    else:
-        db_file = os.path.join(os.path.dirname(__file__), "discipleship_agent.db")
-
-    try:
-        conn = sqlite3.connect(db_file, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        return conn
-    except sqlite3.OperationalError as e:
-        st.error(f"Failed to connect to database at {db_file}: {e}. Check file permissions or path.")
-        st.stop()
-
-# ---------------------------
-# Hugging Face Model Loaders (Remain as is)
-# ---------------------------
-@st.cache_resource
-def load_classifier_model():
-    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-
-@st.cache_resource
-def load_sentiment_model():
-    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
-
-# Call the HF model loaders once when the app starts
-classifier = load_classifier_model()
-sentiment_analyzer = load_sentiment_model()
-
-
-# ---------------------------
-# NEW: Database Schema Initialization (Wrapped in a cached function)
-# ---------------------------
-@st.cache_resource
 def initialize_database():
-    conn = get_db_connection() # Get the cached connection
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Create user_profiles table if it doesn't exist
+    # Create the schema_migrations table to track DB version
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS user_profiles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        stage TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        version INTEGER PRIMARY KEY
     )
     """)
+    conn.commit()
 
-    # Create gift_assessments table if it doesn't exist
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS gift_assessments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        primary_gift TEXT,
-        secondary_gift TEXT,
-        primary_role TEXT,
-        secondary_role TEXT,
-        ministries TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES user_profiles(id)
-    )
-    """)
+    cursor.execute("SELECT MAX(version) FROM schema_migrations")
+    row = cursor.fetchone()
+    current_version = row[0] if row[0] is not None else 0
 
-    # Create growth_journal table if it doesn't exist
-    cursor.execute('''
+    # ----- v1: Base tables -----
+    if current_version < 1:
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            stage TEXT NOT NULL
+        )
+        """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS gift_assessments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            primary_gift TEXT,
+            secondary_gift TEXT,
+            primary_role TEXT,
+            secondary_role TEXT,
+            ministries TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES user_profiles(id)
+        )
+        """)
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS growth_journal (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             entry TEXT,
             reflection TEXT,
             goal TEXT,
-            mood TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES user_profiles(id)
         )
-    ''')
+        ''')
+        cursor.execute("INSERT INTO schema_migrations (version) VALUES (1)")
+        conn.commit()
 
-    # Add the sentiment column to growth_journal if it doesn't already exist
-    try:
-        cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
-        conn.commit() # Commit changes to the schema
-        st.success("Database schema updated: 'sentiment' column added to growth_journal.")
-    except sqlite3.OperationalError as e:
-        if "duplicate column name" in str(e).lower():
-            pass # Column already exists, no need to do anything
-        else:
-            st.warning(f"Could not add sentiment column to growth_journal: {e}")
+    # ----- v2: Add 'mood' column -----
+    if current_version < 2:
+        cursor.execute("PRAGMA table_info(growth_journal)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if "mood" not in columns:
+            cursor.execute("ALTER TABLE growth_journal ADD COLUMN mood TEXT")
+        cursor.execute("INSERT INTO schema_migrations (version) VALUES (2)")
+        conn.commit()
 
-    # IMPORTANT: Do NOT close the connection here. It's cached and needed by other parts of the app.
-    # The 'conn' and 'c' variables here are local to initialize_database().
-    return True # Return anything to indicate success (Streamlit caches return values)
+    # ----- v3: Add 'sentiment' column -----
+    if current_version < 3:
+        cursor.execute("PRAGMA table_info(growth_journal)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if "sentiment" not in columns:
+            cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
+        cursor.execute("INSERT INTO schema_migrations (version) VALUES (3)")
+        conn.commit()
 
-# ---------------------------
-# Call the database initialization function once at app start
-# ---------------------------
-initialize_database()
-
-# ---------------------------
-# Your main Streamlit UI code starts here...
-# (e.g., if 'user_id' not in st.session_state:, etc.)
-# ---------------------------
+    return True
 
 # ---------------------------
 # App Config
@@ -238,8 +209,6 @@ elif tool == "📘 Spiritual Growth Tracker":
         mood = st.selectbox("😌 Mood", ["😊 Joyful", "🙏 Thankful", "😢 Heavy", "😐 Neutral", "💪 Empowered"], key="growth_mood")
 
         submitted = st.form_submit_button("📌 Save Entry")
-        conn = get_db_connection() # Get the cached connection
-        cursor = conn.cursor()     # Get a cursor for this operation
         if submitted:
             if entry.strip() == "":
                 st.warning("Please write something in your journal entry.")
