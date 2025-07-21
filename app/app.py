@@ -6,16 +6,23 @@ import sys
 import sqlite3 # Used in Login/Signup
 import pandas as pd # Used if you display dataframes directly in app.py
 
-# --- 1. Appending module path ---
+import sys
+import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# --- 1. Appending module path ---
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # --- 2. Custom modules ---
 from modules.biblebot_ui import biblebot_ui
-from modules.gift_assessment import gift_assessment_ui # Removed sentiment_analyzer here
-from modules.growth_tracker_ui import growth_tracker_ui
-
-# Database utility functions
-from db import get_db_connection, run_schema_upgrades
+from modules.db import (
+    get_db_connection,
+    insert_gift_assessment,
+    fetch_latest_gift_assessment,
+    delete_gift_assessment_for_user,
+    insert_journal_entry,
+    fetch_journal_entries
+)
 
 # --- 3. Hugging Face Model Loaders (Enhanced with @st.cache_resource) ---
 # These are global to app.py and potentially passed to modules
