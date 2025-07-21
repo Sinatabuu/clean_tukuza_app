@@ -1,8 +1,9 @@
 import streamlit as st
 from datetime import datetime
 # Import the specific functions from db.py
-from db import insert_journal_entry, fetch_journal_entries, delete_journal_entry
+from modules.db import insert_journal_entry, fetch_journal_entries, delete_journal_entry, get_db_connection, run_schema_upgrades
 from transformers import pipeline
+
 
 # Load sentiment model once
 @st.cache_resource
