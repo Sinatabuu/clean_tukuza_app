@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 import joblib
 from langdetect import detect
-from deep_translator import GoogleTranslator 
-
+from deep_translator import GoogleTranslator
+from modules.db import get_db_connection, insert_gift_assessment, fetch_latest_gift_assessment, delete_gift_assessment_for_user
 
 def gift_assessment_ui():
     """
@@ -14,76 +14,55 @@ def gift_assessment_ui():
     """
     st.subheader("🧪 Spiritual Gifts Assessment")
 
-    # Ensure user is authenticated first
+    # Ensure user is authenticated
     if "user_id" not in st.session_state or st.session_state.user_id is None:
         st.warning("⚠️ Please log in or create your discipleship profile before continuing.")
-        # Instead of st.stop(), which halts the entire script, return
-        # to allow other parts of app.py to render or redirect.
         return
 
     current_user_id = st.session_state.user_id
 
     # --- Load models ---
-    # @st.cache_resource is typically used for heavy resource loading once.
-    # If this model is relatively small, loading it inside the function is fine,
-    # but for larger models, consider caching it at the app.py level and passing it.
-    # For now, let's keep it here, assuming joblib.load is fast enough.
     model_path = os.path.join("models", "gift_model.pkl")
     if not os.path.exists(model_path):
         st.error("Spiritual gifts model file not found. Please ensure 'gift_model.pkl' is in the 'models' directory.")
-        return # Use return instead of st.stop()
+        return
     model = joblib.load(model_path)
 
-
     # --- Display Previous Assessment Results ---
-    # Get connection and cursor *just before* using them
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT primary_gift, secondary_gift, primary_role, secondary_role, ministries FROM gift_assessments WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1", (current_user_id,))
-    db_gift_results = cursor.fetchone()
+    with get_db_connection() as conn:
+        result = fetch_latest_gift_assessment(current_user_id)
+        if result:
+            gr = {
+                "primary": result[0],
+                "secondary": result[1],
+                "primary_role": result[2],
+                "secondary_role": result[3],
+                "ministries": json.loads(result[4]) if result[4] else []
+            }
 
-    if db_gift_results:
-        # Reconstruct the dictionary from DB tuple
-        gr = {
-            "primary": db_gift_results["primary_gift"], # Access by column name if row_factory is set
-            "secondary": db_gift_results["secondary_gift"],
-            "primary_role": db_gift_results["primary_role"],
-            "secondary_role": db_gift_results["secondary_role"],
-            "ministries": json.loads(db_gift_results["ministries"]) if db_gift_results["ministries"] else []
-        }
+            st.markdown("### 💡 Your Last Spiritual Gift Assessment")
+            st.info(f"""
+            - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})
+            - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
+            """)
+            st.markdown("### 🚀 Suggested Ministry Pathways")
+            for greater, role in enumerate(gr.get("ministries", []), 1):
+                st.markdown(f"- {greater}. **{role}**")
 
-        st.markdown("### 💡 Your Last Spiritual Gift Assessment")
-        st.info(f"""
-        - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})
-        - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
-        """)
-        st.markdown("### 🚀 Suggested Ministry Pathways")
-        for i, role in enumerate(gr.get("ministries", []), 1):
-            st.markdown(f"- {i}. **{role}**")
+            col_buttons_1, col_buttons_2 = st.columns(2)
+            with col_buttons_1:
+                user_name_for_report = st.session_state.get('user_name', 'N/A')
+                # Fetch stage from database if not in session_state
+                cursor = conn.cursor()
+                cursor.execute("SELECT stage FROM user_profiles WHERE id = %s", (current_user_id,))
+                user_profile_row = cursor.fetchone()
+                stage = user_profile_row[0] if user_profile_row else 'N/A'
 
-        col_buttons_1, col_buttons_2 = st.columns(2)
-        with col_buttons_1:
-            # Ensure user_name is available in session_state, as user_auth was
-            # a previous session state key that might no longer exist.
-            # Assuming st.session_state.user_name holds the current user's name.
-            user_name_for_report = st.session_state.get('user_name', 'N/A')
-            # Assuming user_profiles table has a 'stage' column for the user
-            # You might need to fetch this if it's not in session_state
-            # Example:
-            # stage = "N/A"
-            # cursor.execute("SELECT stage FROM user_profiles WHERE id = ?", (current_user_id,))
-            # user_profile_row = cursor.fetchone()
-            # if user_profile_row:
-            #     stage = user_profile_row['stage']
-            
-            # Simplified for now, assuming stage might not be directly available in session_state
-            # if not, user_auth.get('stage') was causing issues in app.py.
-            report_content = f"""
+                report_content = f"""
 Tukuza Yesu Spiritual Gifts Assessment Report
 
 User Name: {user_name_for_report}
-Faith Stage: {st.session_state.get('user_stage', 'N/A')}
+Faith Stage: {stage}
 
 ---
 
@@ -96,43 +75,33 @@ Your Spiritual Gift Assessment Results:
 
 🚀 Suggested Ministry Pathways:
 """
-            for i, role in enumerate(gr.get("ministries", []), 1):
-                report_content += f"- {i}. {role}\n"
+                for greater, role in enumerate(gr.get("ministries", []), 1):
+                    report_content += f"- {greater}. {role}\n"
 
-            report_content += """
+                report_content += """
 ---
 "So Christ himself gave the apostles, the prophets, the evangelists, the pastors and teachers..." – Ephesians 4:11
 
 Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 """
-            st.download_button(
-                label="⬇️ Download Your Gift Report",
-                data=report_content,
-                file_name=f"tukuza_spiritual_gifts_report_{user_name_for_report.replace(' ', '_').lower()}.txt",
-                mime="text/plain",
-                key="download_gift_report_button"
-            )
-        with col_buttons_2:
-            if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
-                # Get connection and cursor *just before* using them for delete
-                conn_delete = get_db_connection()
-                cursor_delete = conn_delete.cursor()
-                cursor_delete.execute("DELETE FROM gift_assessments WHERE user_id = ?", (current_user_id,))
-                conn_delete.commit()
-                st.experimental_rerun() # Use experimental_rerun for broader compatibility
-
-
-        # IMPORTANT: Do not st.stop() here. This would prevent the assessment form from ever appearing
-        # if a previous assessment exists. Instead, just let the function flow through.
-        # st.stop() # Removed this line
+                st.download_button(
+                    label="⬇️ Download Your Gift Report",
+                    data=report_content,
+                    file_name=f"tukuza_spiritual_gifts_report_{user_name_for_report.replace(' ', '_').lower()}.txt",
+                    mime="text/plain",
+                    key="download_gift_report_button"
+                )
+            with col_buttons_2:
+                if st.button("🧹 Clear Previous Gift Assessment", key="clear_gift_assessment_button"):
+                    delete_gift_assessment_for_user(current_user_id)
+                    st.rerun()
 
     # --- New Assessment Form ---
-    st.subheader("Take a New Spiritual Gifts Assessment") # Changed title for clarity
+    st.subheader("Take a New Spiritual Gifts Assessment")
 
     # Language detection for questions
     sample_input = st.text_input("🌐 Type anything in your language to personalize the experience:", key="sample_lang_input_assessment")
     SUPPORTED_LANG_CODES = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
-
     user_lang = "en"
     if sample_input.strip():
         try:
@@ -141,9 +110,8 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
                 user_lang = detected
             else:
                 st.warning(f"⚠️ Language '{detected}' not supported. Defaulting to English.")
-        except Exception: # Catch broader exceptions for langdetect
-            st.warning("⚠️ Could not detect language. Defaulting to English.")
-            user_lang = "en"
+        except Exception as e:
+            st.warning(f"⚠️ Could not detect language: {str(e)}. Defaulting to English.")
 
     questions_en = [
         "I enjoy explaining Bible truths in a clear, structured way.",
@@ -192,15 +160,15 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
     if user_lang != "en":
         try:
             questions = [GoogleTranslator(source="en", target=user_lang).translate(q) for q in questions_en]
-        except Exception: # Catch broader exceptions for translation
-            st.warning("⚠️ Translation of questions failed. Using English.")
+        except Exception as e:
+            st.warning(f"⚠️ Translation of questions failed: {str(e)}. Using English.")
 
     scale_instruction = "Answer each question on a scale from 1 (Strongly Disagree) to 5 (Strongly Agree)."
     if user_lang != "en":
         try:
             scale_instruction = GoogleTranslator(source='en', target=user_lang).translate(scale_instruction)
-        except Exception: # Catch broader exceptions for translation
-            pass # Keep default English
+        except Exception as e:
+            st.warning(f"⚠️ Translation failed: {str(e)}. Using English.")
 
     st.caption(scale_instruction)
 
@@ -211,11 +179,10 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
         if user_lang != "en":
             try:
                 submit_text = GoogleTranslator(source="en", target=user_lang).translate(submit_text)
-            except Exception: # Catch broader exceptions for translation
-                pass # Keep default English
+            except Exception as e:
+                st.warning(f"⚠️ Translation failed: {str(e)}. Using English.")
 
-        # Fix: The button label should be the string variable, not the variable name
-        submitted = st.form_submit_button(submit_text) # Corrected this line
+        submitted = st.form_submit_button(submit_text)
 
         if submitted:
             try:
@@ -244,25 +211,19 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 
                 ministry_suggestions = recommend_ministries(primary, secondary, gift_ministry_map)
 
-                # Get connection and cursor *just before* using them for insert
-                conn_insert = get_db_connection()
-                cursor_insert = conn_insert.cursor()
+                gift_data = {
+                    "primary_gift": primary,
+                    "secondary_gift": secondary,
+                    "primary_role": primary_role,
+                    "secondary_role": secondary_role,
+                    "ministries": ministry_suggestions
+                }
 
-                cursor_insert.execute("""
-                    INSERT INTO gift_assessments (user_id, primary_gift, secondary_gift, primary_role, secondary_role, ministries)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    current_user_id,
-                    primary,
-                    secondary,
-                    primary_role,
-                    secondary_role,
-                    json.dumps(ministry_suggestions)
-                ))
-                conn_insert.commit()
-
-                st.success("Your assessment has been saved!")
-                st.experimental_rerun() # Use experimental_rerun for broader compatibility
+                if insert_gift_assessment(current_user_id, gift_data):
+                    st.success("Your assessment has been saved!")
+                    st.rerun()
+                else:
+                    st.error("Failed to save assessment. Please try again.")
 
             except Exception as e:
-                st.error(f"⚠️ Error during prediction or saving: {e}")
+                st.error(f"⚠️ Error during prediction or saving: {str(e)}")

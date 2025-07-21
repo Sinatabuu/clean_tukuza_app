@@ -1,105 +1,105 @@
-import os
-import sqlite3
+import psycopg2
 import streamlit as st
 
-# ---------------------------
-# 🔌 Database Connection
-# ---------------------------
-@st.cache_resource
 def get_db_connection():
-    if os.environ.get("STREAMLIT_SERVER_ENVIRONMENT") == "cloud":
-        db_file = "/tmp/discipleship_agent.db"
-    else:
-        db_file = os.path.join(os.path.dirname(__file__), "../discipleship_agent.db")
-
     try:
-        conn = sqlite3.connect(db_file, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
+        conn = psycopg2.connect(
+            host=st.secrets["DB"]["DB_HOST"],
+            port=st.secrets["DB"]["DB_PORT"],
+            database=st.secrets["DB"]["DB_NAME"],
+            user=st.secrets["DB"]["DB_USER"],
+            password=st.secrets["DB"]["DB_PASSWORD"]
+        )
         return conn
-    except sqlite3.OperationalError as e:
-        st.error(f"❌ DB connection failed: {e}")
-        st.stop()
+    except psycopg2.Error as e:
+        st.error(f"Database connection failed: {e}")
+        return None
 
-# ---------------------------
-# 📊 Schema Versioning
-# ---------------------------
-def get_schema_version(cursor):
-    cursor.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER)")
-    cursor.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
-    row = cursor.fetchone()
-    return row[0] if row else 0
-
-def set_schema_version(cursor, version):
-    cursor.execute("DELETE FROM schema_version")
-    cursor.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
-
-# ---------------------------
-# 🔧 Table Creators
-# ---------------------------
-def create_user_profiles_table(cursor):
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS user_profiles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            stage TEXT NOT NULL
-        )
-    """)
-
-def create_gift_assessments_table(cursor):
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS gift_assessments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            primary_gift TEXT,
-            secondary_gift TEXT,
-            primary_role TEXT,
-            secondary_role TEXT,
-            ministries TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES user_profiles(id)
-        )
-    """)
-
-def create_growth_journal_table(cursor):
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS growth_journal (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            entry TEXT,
-            reflection TEXT,
-            goal TEXT,
-            mood TEXT,
-            sentiment TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES user_profiles(id)
-        )
-    """)
-
-# ---------------------------
-# ⬆️ Schema Upgrader
-# ---------------------------
 def run_schema_upgrades():
     conn = get_db_connection()
-    cursor = conn.cursor()
-    current_version = get_schema_version(cursor)
-
-    st.write(f"🔍 Current DB schema version: {current_version}")  # Debugging line
-
-    if current_version < 1:
-        st.write("🧱 Creating tables...")
-        create_user_profiles_table(cursor)
-        create_gift_assessments_table(cursor)
-        create_growth_journal_table(cursor)
-        set_schema_version(cursor, 1)
-        conn.commit()
-
-    if current_version < 2:
-        try:
-            cursor.execute("ALTER TABLE growth_journal ADD COLUMN sentiment TEXT")
-            set_schema_version(cursor, 2)
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS journal_entries (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    entry_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    entry_text TEXT NOT NULL,
+                    reflection_text TEXT,
+                    faith_goal TEXT,
+                    mood VARCHAR(50),
+                    sentiment FLOAT
+                );
+            """)
             conn.commit()
-        except sqlite3.OperationalError as e:
-            if "duplicate column name" not in str(e).lower():
-                st.error(f"Schema upgrade to v2 failed: {e}")
+    except psycopg2.Error as e:
+        st.error(f"Schema upgrade failed: {e}")
+    finally:
+        conn.close()
 
-    conn.close()
+def insert_journal_entry(user_id, entry_text, reflection_text, faith_goal, mood, sentiment):
+    conn = get_db_connection()
+    if conn is None:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO journal_entries (user_id, entry_text, reflection_text, faith_goal, mood, sentiment)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id;
+            """, (user_id, entry_text, reflection_text, faith_goal, mood, sentiment))
+            entry_id = cur.fetchone()[0]
+            conn.commit()
+            return entry_id
+    except psycopg2.Error as e:
+        st.error(f"Failed to insert journal entry: {e}")
+        return None
+    finally:
+        conn.close()
+
+def fetch_journal_entries(user_id):
+    conn = get_db_connection()
+    if conn is None:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, entry_date, entry_text, reflection_text, faith_goal, mood, sentiment
+                FROM journal_entries
+                WHERE user_id = %s
+                ORDER BY entry_date DESC;
+            """, (user_id,))
+            entries = cur.fetchall()
+            return [
+                {
+                    "id": row[0],
+                    "entry_date": row[1],
+                    "entry_text": row[2],
+                    "reflection_text": row[3],
+                    "faith_goal": row[4],
+                    "mood": row[5],
+                    "sentiment": row[6]
+                } for row in entries
+            ]
+    except psycopg2.Error as e:
+        st.error(f"Failed to fetch journal entries: {e}")
+        return []
+    finally:
+        conn.close()
+
+def delete_journal_entry(entry_id):
+    conn = get_db_connection()
+    if conn is None:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM journal_entries WHERE id = %s;", (entry_id,))
+            conn.commit()
+            return cur.rowcount > 0
+    except psycopg2.Error as e:
+        st.error(f"Failed to delete journal entry: {e}")
+        return False
+    finally:
+        conn.close()
