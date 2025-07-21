@@ -10,3 +10,5 @@ numpy
 pandas
 transformers
 torch # Or tensorflow, depending on your choice
+supabase>=1.0.0 # Or the specific version you prefer
+psycopg2-binary # If connecting directly via psycopg2

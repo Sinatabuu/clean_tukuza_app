@@ -1,82 +1,82 @@
 import streamlit as st
 import os
+import joblib
+import numpy as np
+import pandas as pd
+import sqlite3
 import sys
-
-# Standard libraries that are truly global for app.py's direct use
-import sqlite3 # Used in Login/Signup
-import pandas as pd # Used if you display dataframes directly in app.py
+import json
+from openai import OpenAI # Assuming you use this for something not shown here
+from langdetect import detect
+from deep_translator import GoogleTranslator
+from transformers import pipeline # For the verse classifier and sentiment analysis
 
 # --- 1. Appending module path ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # --- 2. Custom modules ---
+# Ensure these files and functions exist in their respective paths
 from modules.biblebot_ui import biblebot_ui
-from modules.gift_assessment import gift_assessment_ui # Removed sentiment_analyzer here
-from modules.growth_tracker_ui import growth_tracker_ui
+# Assuming you'll uncomment these and they contain the UI functions
+from modules.gift_assessment import gift_assessment_ui , sentiment_analyzer # Assuming this is used in gift_assessment_ui
+from modules.growth_tracker_ui import growth_tracker_ui # Assuming this module exists
 
-# Database utility functions
+# Assuming these are in db.py and correctly handle their logic
 from db import get_db_connection, run_schema_upgrades
 
-# --- 3. Hugging Face Model Loaders (Enhanced with @st.cache_resource) ---
-# These are global to app.py and potentially passed to modules
-from transformers import pipeline
+# --- 3. Initialize OpenAI Client (if used) ---
+# Assuming you have OPENAI_API_KEY set in Streamlit secrets or environment
+# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+# --- 4. Hugging Face Model Loaders (Enhanced with @st.cache_resource) ---
 @st.cache_resource
 def load_classifier_model():
+    # Zero-shot classification is more flexible for custom topics
     return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
 @st.cache_resource
 def load_sentiment_model():
+    # Using a sentiment analysis model for journal entries
     return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
 # Load models once at app startup
 classifier = load_classifier_model()
-sentiment_analyzer = load_sentiment_model()
+sentiment_analyzer = load_sentiment_model() # This was used in your previous journal code
 
 
-# --- 4. Database Initialization and Schema Upgrade ---
+# --- 5. Database Initialization and Schema Upgrade ---
+# This ensures the DB connection is established and schema is up-to-date
+# run_schema_upgrades() itself is decorated with @st.cache_resource in db.py
 run_schema_upgrades()
 
 
-# --- 5. Translation Functions (Moved to a common utility file if many modules use them) ---
-# For now, keep them here if only app.py and perhaps one module uses them
-from langdetect import detect
-from deep_translator import GoogleTranslator
-
+# --- 6. Translation Functions ---
 def translate_user_input(text, target_lang="en"):
-    try:
-        detected_lang = detect(text)
-        if detected_lang != 'en':
-            translated = GoogleTranslator(source='auto', target='en').translate(text)
-            return translated, detected_lang
-        return text, detected_lang
-    except Exception: # Catch any error during detection/translation
-        return text, "en" # Fallback to original text and English
+    detected_lang = detect(text)
+    if detected_lang != 'en':
+        translated = GoogleTranslator(source='auto', target='en').translate(text)
+        return translated, detected_lang
+    return text, detected_lang
 
 def translate_bot_response(text, target_lang):
     if target_lang != 'en':
-        try:
-            return GoogleTranslator(source='en', target=target_lang).translate(text)
-        except Exception: # Catch any error during translation
-            return text # Return original if translation fails
+        return GoogleTranslator(source='en', target=target_lang).translate(text)
     return text
 
-# --- 6. App Configuration ---
+# --- 7. App Configuration ---
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
 
-# --- 7. Main Streamlit Application Function ---
+# --- 8. Main Streamlit Application Function ---
+# Encapsulating the UI logic ensures session state and DB calls are handled well
 def main_app():
-    """
-    Main function for the Tukuza Yesu AI Toolkit Streamlit application.
-    Handles user login, navigation, and dispatches to different tools.
-    """
     # --- Session State Initialization ---
+    # Moved inside main_app for clarity and proper re-initialization on full app restart
     if 'user_id' not in st.session_state:
         st.session_state.user_id = None
-    if 'user_name' not in st.session_state:
+    if 'user_name' not in st.session_state: # Added for user display
         st.session_state.user_name = None
     if 'page' not in st.session_state:
-        st.session_state.page = "Login"
+        st.session_state.page = "Login" # Start at Login page
 
 
     st.sidebar.title("✝️ Tukuza Yesu Toolkit 🚀")
@@ -88,15 +88,17 @@ def main_app():
 
         with login_tab:
             st.markdown("### Existing User Login")
+            # Get connection and cursor right before use
             conn = get_db_connection()
             cursor = conn.cursor()
+            # Fetch existing users to allow selection
             cursor.execute("SELECT id, name FROM user_profiles ORDER BY name")
             existing_users = cursor.fetchall()
 
             users = {row["name"]: row["id"] for row in existing_users}
-            user_names = ["Select User"] + sorted(list(users.keys()))
+            user_names = ["Select User"] + sorted(list(users.keys())) # Sort for better UX
 
-            selected_user_name = st.selectbox("Select your profile", user_names, key="login_user_select")
+            selected_user_name = st.selectbox("Select your profile", user_names)
 
             if selected_user_name != "Select User":
                 st.session_state.user_id = users[selected_user_name]
@@ -141,8 +143,9 @@ def main_app():
             st.experimental_rerun()
 
         st.sidebar.subheader("Navigation")
+        # Tool selector is now main navigation
         tool = st.sidebar.selectbox("🛠️ Select a Tool", [
-            "🏠 Dashboard",
+            "🏠 Dashboard", # Added Dashboard as an option for clarity
             "📖 BibleBot",
             "📘 Spiritual Growth Tracker",
             "🔖 Verse Classifier",
@@ -155,12 +158,15 @@ def main_app():
             st.title(f"Dashboard for {st.session_state.user_name}")
             st.write("Welcome to your personalized discipleship dashboard.")
             st.info("Select a tool from the sidebar to begin.")
+            # You can add summary information here later if you want
 
         elif tool == "📖 BibleBot":
-            biblebot_ui()
+            biblebot_ui() # Calls the UI from modules/biblebot_ui.py
 
         elif tool == "📘 Spiritual Growth Tracker":
-            growth_tracker_ui(sentiment_analyzer) # Pass sentiment_analyzer
+            # This is where your journaling and growth tracking UI would be
+            # Assuming growth_tracker_ui handles all DB interaction internally
+            growth_tracker_ui(sentiment_analyzer) # Pass sentiment_analyzer if it needs it
 
         elif tool == "🔖 Verse Classifier":
             st.subheader("Classify a Bible Verse")
@@ -185,13 +191,38 @@ def main_app():
             st.success(verse_of_the_day)
 
         elif tool == "🧪 Spiritual Gifts Assessment":
-            gift_assessment_ui() # Call without arguments, as sentiment_analyzer is not used there
-                                 # and joblib.load is handled internally.
+            # Pass classifier/sentiment_analyzer if needed by gift_assessment_ui
+            gift_assessment_ui() # You'll need to update gift_assessment_ui to accept these
+            # The original code for the gift assessment was quite long,
+            # so it's best to move it into modules/gift_assessment.py entirely.
+            # Below is a conceptual placeholder of what gift_assessment_ui might contain.
 
-# --- 8. Entry Point for the App ---
+            # if "user_id" not in st.session_state or st.session_state.user_id is None:
+            #     st.warning("⚠️ Please log in or create your discipleship profile before continuing.")
+            #     return # Exit the function if no user is logged in
+
+            # current_user_id = st.session_state.user_id
+            # conn = get_db_connection()
+            # cursor = conn.cursor()
+
+            # # Load models (moved inside if tool block for direct access by gift_assessment_ui)
+            # model_path = os.path.join("models", "gift_model.pkl")
+            # if not os.path.exists(model_path):
+            #     st.error("Spiritual gifts model file not found. Please ensure 'gift_model.pkl' is in the 'models' directory.")
+            #     st.stop() # Or return
+            # model = joblib.load(model_path)
+
+            # # The rest of your gift assessment logic goes here,
+            # # including fetching previous results, the form, and saving.
+            # # Ensure all DB calls within gift_assessment_ui get their own conn/cursor.
+            # # e.g., conn = get_db_connection(); cursor = conn.cursor()
+            # # This is why moving it to its own module and passing necessary data is cleaner.
+
+
+# --- 9. Entry Point for the App ---
 if __name__ == "__main__":
     main_app()
 
-# --- 9. Credit (Always show) ---
+# --- 10. Credit (Always show) ---
 st.markdown("---")
 st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
