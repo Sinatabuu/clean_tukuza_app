@@ -14,6 +14,10 @@ import os
 
 
 def biblebot_ui():
+    if "OPENAI_API_KEY" not in st.secrets:
+    st.error("OPENAI_API_KEY is missing from Streamlit secrets.")
+    st.stop()
+
     # ✅ Setup OpenAI Client
     api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
