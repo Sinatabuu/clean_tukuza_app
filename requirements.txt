@@ -1,14 +1,17 @@
-streamlit
+streamlit>=1.31.0
+
 openai
 langdetect
 deep-translator
+
 joblib
 scikit-learn
-streamlit-webrtc
-streamlit>=1.20.0
 numpy
 pandas
-transformers
-torch # Or tensorflow, depending on your choice
-supabase>=1.0.0 # Or the specific version you prefer
-psycopg2-binary # If connecting directly via psycopg2
+
+transformers>=4.41.0
+torch>=2.2.0
+
+psycopg2-binary>=2.9.9
+
+streamlit-webrtc>=0.47.0

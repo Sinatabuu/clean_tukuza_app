@@ -1,10 +1,10 @@
 # 📦 MODULE: biblebot_ui.py
 import streamlit as st
 from openai import OpenAI
-from langdetect import detect # Keep this import for 'detect' function
+from langdetect import detect
 from deep_translator import GoogleTranslator
+import speech_recognition as sr
 import os
-from datetime import datetime
 
 
 def biblebot_ui():
@@ -16,95 +16,75 @@ def biblebot_ui():
 
     client = OpenAI(api_key=api_key)
 
-    # 🌐 Language switcher and Title (place them at the top of the UI)
-    # ADDED UNIQUE KEY
-    st.session_state.lang = st.selectbox("🌍 Select language", ["en", "sw", "fr", "de", "es"], index=0, key="biblebot_lang_select")
-    st.subheader("📖 BibleBot (Multilingual)")
+    # 📖 Title and caption
+    st.subheader("📖 BibleBot (Multilingual + Voice)")
+    st.caption("🙋 Ask anything related to the Bible — type or speak")
 
-    # ✅ Clear Chat Option - CONSOLIDATED TO ONE BUTTON WITH UNIQUE KEY
-    if st.button("🗑️ Clear Chat History", key="clear_chat_button"): # Added unique key and consolidated
-        st.session_state.messages = []
-        st.rerun() # Changed from st.experimental_rerun()
-
-    # ✅ Initialize chat history if not present
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
+    # -------------------------
+    # 📥 Input + 🎙️ Mic in Same Row
+    # -------------------------
+    col1, col2 = st.columns([7, 1])
+    with col1:
+        user_input = st.text_input("Ask your question:", key="text_question")
+    with col2:
+        mic_clicked = st.button("🎙️", key="mic_button")
 
-    # 🚀 Display all chat messages from history on app rerun
-    # This loop is the ONLY place where messages should be displayed.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # 🎤 Handle voice if mic is clicked
+    if mic_clicked:
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.info("🎤 Listening…")
+            try:
+                audio = recognizer.listen(source, timeout=5)
+                voice_text = recognizer.recognize_google(audio)
+                st.success(f"🗣️ Recognized: {voice_text}")
+                st.session_state.messages.append({"role": "user", "content": voice_text})
+            except sr.UnknownValueError:
+                st.warning("Could not understand.")
+            except Exception as e:
+                st.error(f"Error: {e}")
 
-    # 📬 Accept user input using st.chat_input
-    # ADDED UNIQUE KEY
-    if prompt := st.chat_input("Type your question here:", key="biblebot_user_input"):
-        # 1. Add user message to chat history FIRST
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    # 📝 Handle text input
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-        # 2. Translate user input if not in English
-        selected_lang = st.session_state.lang
-        input_en = GoogleTranslator(source='auto', target='en').translate(prompt) if selected_lang != 'en' else prompt
+    # 🔁 Translate and Process
+    if st.session_state.messages:
+        translated_messages = []
+        original_lang = None
 
-        # 3. Generate assistant response
+        for msg in st.session_state.messages:
+            if msg["role"] == "user":
+                detected_lang = detect(msg["content"])
+                original_lang = detected_lang
+                if detected_lang != 'en':
+                    translated = GoogleTranslator(source='auto', target='en').translate(msg["content"])
+                else:
+                    translated = msg["content"]
+                translated_messages.append({"role": "user", "content": translated})
+            else:
+                translated_messages.append(msg)
+
         try:
             stream = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": input_en}],
+                messages=translated_messages,
                 stream=True,
             )
 
-            full_english_reply = ""
-            # Collect the full English response from the stream without displaying it yet
-            for chunk in stream:
-                full_english_reply += chunk.choices[0].delta.content or ""
+            with st.chat_message("user"):
+                st.markdown(st.session_state.messages[-1]["content"])
 
-            final_display_reply = full_english_reply
+            with st.chat_message("assistant"):
+                reply = st.write_stream(stream)
 
-            # Translate after collecting the full response, if needed
-            if selected_lang != 'en':
-                final_display_reply = GoogleTranslator(source='en', target=selected_lang).translate(full_english_reply)
-            
-            # 4. Add assistant message to chat history
-            st.session_state.messages.append({"role": "assistant", "content": final_display_reply})
+            if original_lang and original_lang != 'en':
+                reply = GoogleTranslator(source='en', target=original_lang).translate(reply)
 
-            # 📂 Save chat (simple local file) and provide download button
-            # This action will also trigger a rerun, which is fine
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            file_path = f"chat_{timestamp}.txt"
-            with open(file_path, "w", encoding="utf-8") as f:
-                for msg in st.session_state.messages:
-                    role = msg['role']
-                    content = msg['content']
-                    f.write(f"{role.upper()}:\n{content}\n\n")
-
-            # ADDED UNIQUE KEY
-            with open(file_path, "rb") as f:
-                st.download_button("📅 Download Chat", f, file_name=file_path, mime="text/plain", key="download_chat_button")
-
-            # 5. Force a rerun to update the display with the new messages in the history loop
-            st.rerun() # Changed from st.experimental_rerun()
+            st.session_state.messages.append({"role": "assistant", "content": reply})
 
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
-            # Append error message to history so it's recorded
-            st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
-            st.rerun() # Changed from st.experimental_rerun()
-
-
-    # 📱 Mobile Layout Tweaks (auto handled by Streamlit, but adding polish)
-    st.markdown("""
-        <style>
-        .stTextInput input, .stChatInput input {
-            font-size: 1rem !important;
-        }
-        .stDownloadButton button {
-            font-size: 0.9rem;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # © Credit - Always show at the bottom
-    #st.markdown("---")
-    #st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")

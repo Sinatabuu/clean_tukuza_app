@@ -1,31 +1,25 @@
+import os
+import sys
 import streamlit as st
-import os
-import sys
 
-# Standard libraries that are truly global for app.py's direct use
-import sqlite3 # Used in Login/Signup
-import pandas as pd # Used if you display dataframes directly in app.py
+# Ensure repo root is on path (so "modules" imports always work)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# --- 1. Appending module path ---
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# --- 2. Custom modules ---
-from modules.biblebot_ui import biblebot_ui
 from modules.db import (
+    run_schema_upgrades,
     get_db_connection,
     insert_gift_assessment,
     fetch_latest_gift_assessment,
-    delete_gift_assessment_for_user,
     insert_journal_entry,
-    fetch_journal_entries
+    fetch_journal_entries,
 )
 
-# --- 3. Hugging Face Model Loaders (Enhanced with @st.cache_resource) ---
-# These are global to app.py and potentially passed to modules
+from modules.biblebot_ui import biblebot_ui
+
+# Run DB migrations once at startup
+run_schema_upgrades()
+
+# --- Hugging Face (optional: heavy!) ---
 from transformers import pipeline
 
 @st.cache_resource
@@ -36,13 +30,9 @@ def load_classifier_model():
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
-# Load models once at app startup
 classifier = load_classifier_model()
 sentiment_analyzer = load_sentiment_model()
 
-
-# --- 4. Database Initialization and Schema Upgrade ---
-run_schema_upgrades()
 
 
 # --- 5. Translation Functions (Moved to a common utility file if many modules use them) ---
