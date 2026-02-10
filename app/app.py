@@ -71,12 +71,12 @@ def main_app():
         st.write("Select a tool from the sidebar.")
 
     elif tool == "📖 BibleBot":
-    try:
-        from modules.biblebot_ui import biblebot_ui
-        biblebot_ui()
-    except Exception as e:
-        st.error("BibleBot failed to load.")
-        st.exception(e)
+        try:
+            from modules.biblebot_ui import biblebot_ui
+            biblebot_ui()
+        except Exception as e:
+            st.error("BibleBot failed to load.")
+            st.exception(e)
 
 
     elif tool == "📘 Spiritual Growth Tracker":
