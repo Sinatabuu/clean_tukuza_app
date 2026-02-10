@@ -3,7 +3,13 @@ import streamlit as st
 from openai import OpenAI
 from langdetect import detect
 from deep_translator import GoogleTranslator
-import speech_recognition as sr
+try:
+    import speech_recognition as sr
+    SR_AVAILABLE = True
+except Exception:
+    sr = None
+    SR_AVAILABLE = False
+
 import os
 
 
@@ -23,29 +29,37 @@ def biblebot_ui():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
+   
     # -------------------------
-    # 📥 Input + 🎙️ Mic in Same Row
-    # -------------------------
+# 📥 Input + 🎙️ Mic in Same Row
+# -------------------------
     col1, col2 = st.columns([7, 1])
     with col1:
         user_input = st.text_input("Ask your question:", key="text_question")
-    with col2:
-        mic_clicked = st.button("🎙️", key="mic_button")
 
-    # 🎤 Handle voice if mic is clicked
+    with col2:
+        if SR_AVAILABLE:
+            mic_clicked = st.button("🎙️", key="mic_button")
+        else:
+            st.button("🎙️", key="mic_button_disabled", disabled=True)
+            mic_clicked = False
+
+        # 🎤 Handle voice if mic is clicked
     if mic_clicked:
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
-            st.info("🎤 Listening…")
+        if not SR_AVAILABLE:
+            st.info("Voice input isn’t available on this deployment.")
+        else:
             try:
-                audio = recognizer.listen(source, timeout=5)
+                recognizer = sr.Recognizer()
+                with sr.Microphone() as source:
+                    st.info("🎤 Listening…")
+                    audio = recognizer.listen(source, timeout=5)
                 voice_text = recognizer.recognize_google(audio)
                 st.success(f"🗣️ Recognized: {voice_text}")
                 st.session_state.messages.append({"role": "user", "content": voice_text})
-            except sr.UnknownValueError:
-                st.warning("Could not understand.")
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Voice error: {e}")
+
 
     # 📝 Handle text input
     if user_input:

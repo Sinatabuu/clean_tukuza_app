@@ -2,193 +2,120 @@ import os
 import sys
 import streamlit as st
 
-# Ensure repo root is on path (so "modules" imports always work)
+# Ensure repo root on path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from modules.db import (
-    run_schema_upgrades,
-    get_db_connection,
-    insert_gift_assessment,
-    fetch_latest_gift_assessment,
-    insert_journal_entry,
-    fetch_journal_entries,
-)
+import modules.db as db
 
-from modules.biblebot_ui import biblebot_ui
-
-# Run DB migrations once at startup
-run_schema_upgrades()
-
-# --- Hugging Face (optional: heavy!) ---
-from transformers import pipeline
-
-@st.cache_resource
-def load_classifier_model():
-    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-
-@st.cache_resource
-def load_sentiment_model():
-    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
-
-classifier = load_classifier_model()
-sentiment_analyzer = load_sentiment_model()
-
-
-
-# --- 5. Translation Functions (Moved to a common utility file if many modules use them) ---
-# For now, keep them here if only app.py and perhaps one module uses them
-from langdetect import detect
-from deep_translator import GoogleTranslator
-
-def translate_user_input(text, target_lang="en"):
-    try:
-        detected_lang = detect(text)
-        if detected_lang != 'en':
-            translated = GoogleTranslator(source='auto', target='en').translate(text)
-            return translated, detected_lang
-        return text, detected_lang
-    except Exception: # Catch any error during detection/translation
-        return text, "en" # Fallback to original text and English
-
-def translate_bot_response(text, target_lang):
-    if target_lang != 'en':
-        try:
-            return GoogleTranslator(source='en', target=target_lang).translate(text)
-        except Exception: # Catch any error during translation
-            return text # Return original if translation fails
-    return text
-
-# --- 6. App Configuration ---
 st.set_page_config(page_title="Tukuza Yesu AI Toolkit", page_icon="📖", layout="wide")
 
-# --- 7. Main Streamlit Application Function ---
-def main_app():
-    """
-    Main function for the Tukuza Yesu AI Toolkit Streamlit application.
-    Handles user login, navigation, and dispatches to different tools.
-    """
-    # --- Session State Initialization ---
-    if 'user_id' not in st.session_state:
-        st.session_state.user_id = None
-    if 'user_name' not in st.session_state:
-        st.session_state.user_name = None
-    if 'page' not in st.session_state:
-        st.session_state.page = "Login"
+@st.cache_resource
+def init_db_once():
+    db.run_schema_upgrades()
+    return True
 
+init_db_once()
+
+def safe_load(func_import):
+    """Return (callable, error) without crashing app."""
+    try:
+        return func_import(), None
+    except Exception as e:
+        return None, e
+
+def get_sentiment_model():
+    from transformers import pipeline
+    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+def get_zero_shot_classifier():
+    from transformers import pipeline
+    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+
+def main_app():
+    if "user_id" not in st.session_state:
+        st.session_state.user_id = None
+    if "user_name" not in st.session_state:
+        st.session_state.user_name = None
 
     st.sidebar.title("✝️ Tukuza Yesu Toolkit 🚀")
 
-    # --- Login/User Management Section (Main Entry Point) ---
-    if st.session_state.page == "Login":
+    # --- LOGIN (keep it simple first) ---
+    if st.session_state.user_id is None:
         st.header("Welcome to Tukuza!")
-        login_tab, signup_tab = st.tabs(["Login", "Sign Up"])
+        st.info("Login/Profiles coming next — for now we’ll use a session-based user.")
+        if st.button("Continue"):
+            st.session_state.user_id = st.session_state.get("session_id", "demo")
+            st.session_state.user_name = "Guest"
+        st.stop()
 
-        with login_tab:
-            st.markdown("### Existing User Login")
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, name FROM user_profiles ORDER BY name")
-            existing_users = cursor.fetchall()
+    st.sidebar.write(f"Logged in as: **{st.session_state.user_name}**")
+    if st.sidebar.button("Logout"):
+        st.session_state.user_id = None
+        st.session_state.user_name = None
+        st.rerun()
 
-            users = {row["name"]: row["id"] for row in existing_users}
-            user_names = ["Select User"] + sorted(list(users.keys()))
-
-            selected_user_name = st.selectbox("Select your profile", user_names, key="login_user_select")
-
-            if selected_user_name != "Select User":
-                st.session_state.user_id = users[selected_user_name]
-                st.session_state.user_name = selected_user_name
-                st.success(f"Logged in as {selected_user_name}!")
-                st.session_state.page = "Dashboard"
-                st.experimental_rerun()
-            else:
-                st.info("Or create a new profile in the 'Sign Up' tab.")
-
-        with signup_tab:
-            st.markdown("### Create New Profile")
-            new_user_name = st.text_input("New User Name", key="new_user_name_input")
-            new_user_email = st.text_input("Email (Optional)", key="new_user_email_input")
-            selected_stage = st.selectbox("Select Discipleship Stage", ["Seeker", "Believer", "Disciple", "Leader"], key="new_user_stage_select")
-
-            if st.button("Create Profile", key="create_profile_button"):
-                if new_user_name:
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    try:
-                        cursor.execute("INSERT INTO user_profiles (name, email, stage) VALUES (?, ?, ?)",
-                                       (new_user_name, new_user_email, selected_stage))
-                        conn.commit()
-                        st.success(f"Profile '{new_user_name}' created successfully!")
-                        st.session_state.user_id = cursor.lastrowid
-                        st.session_state.user_name = new_user_name
-                        st.session_state.page = "Dashboard"
-                        st.experimental_rerun()
-                    except sqlite3.IntegrityError:
-                        st.error("A user with this name already exists. Please choose a different name.")
-                else:
-                    st.warning("Please enter a user name.")
-
-    # --- Dashboard and Tool Selection ---
-    elif st.session_state.page == "Dashboard":
-        st.sidebar.write(f"Logged in as: **{st.session_state.user_name}**")
-        if st.sidebar.button("Logout", key="logout_button"):
-            st.session_state.user_id = None
-            st.session_state.user_name = None
-            st.session_state.page = "Login"
-            st.experimental_rerun()
-
-        st.sidebar.subheader("Navigation")
-        tool = st.sidebar.selectbox("🛠️ Select a Tool", [
+    tool = st.sidebar.selectbox(
+        "🛠️ Select a Tool",
+        [
             "🏠 Dashboard",
             "📖 BibleBot",
             "📘 Spiritual Growth Tracker",
             "🔖 Verse Classifier",
             "🌅 Daily Verse",
-            "🧪 Spiritual Gifts Assessment"
-        ], index=0, key="tool_selector_dashboard")
+            "🧪 Spiritual Gifts Assessment",
+        ],
+    )
 
-        # Handle tool selection
-        if tool == "🏠 Dashboard":
-            st.title(f"Dashboard for {st.session_state.user_name}")
-            st.write("Welcome to your personalized discipleship dashboard.")
-            st.info("Select a tool from the sidebar to begin.")
+    if tool == "🏠 Dashboard":
+        st.title("Tukuza Yesu AI Toolkit")
+        st.write("Select a tool from the sidebar.")
 
-        elif tool == "📖 BibleBot":
-            biblebot_ui()
+    elif tool == "📖 BibleBot":
+    try:
+        from modules.biblebot_ui import biblebot_ui
+        biblebot_ui()
+    except Exception as e:
+        st.error("BibleBot failed to load.")
+        st.exception(e)
 
-        elif tool == "📘 Spiritual Growth Tracker":
-            growth_tracker_ui(sentiment_analyzer) # Pass sentiment_analyzer
 
-        elif tool == "🔖 Verse Classifier":
-            st.subheader("Classify a Bible Verse")
-            st.write("🧠 Using a Hugging Face model for classification.")
-            candidate_labels = ["faith", "love", "hope", "salvation", "guidance", "suffering", "peace", "justice", "community", "forgiveness"]
-            st.write(f"Considered Topics: {', '.join(candidate_labels)}")
+    elif tool == "📘 Spiritual Growth Tracker":
+        ui, err = safe_load(lambda: __import__("modules.growth_tracker_ui", fromlist=["growth_tracker_ui"]).growth_tracker_ui)
+        if err:
+            st.error("Growth Tracker failed to load.")
+            st.exception(err)
+        else:
+            # load sentiment only when needed
+            with st.spinner("Loading sentiment model..."):
+                sentiment = get_sentiment_model()
+            ui(sentiment)
 
-            verse = st.text_area("Paste a Bible verse here:", key="verse_classifier_input")
-            if st.button("Classify", key="classify_button"):
-                if verse.strip() == "":
-                    st.warning("Please enter a verse.")
-                else:
-                    result = classifier(verse, candidate_labels=candidate_labels, multi_label=False)
-                    predicted_topic = result['labels'][0]
-                    score = result['scores'][0]
-                    st.success(f"🧠 Predicted Topic: **{predicted_topic}** (Confidence: {score:.2f})")
-                    st.info(f"Top 3 predictions: {result['labels'][0]} ({result['scores'][0]:.2f}), {result['labels'][1]} ({result['scores'][1]:.2f}), {result['labels'][2]} ({result['scores'][2]:.2f})")
+    elif tool == "🔖 Verse Classifier":
+        st.subheader("Classify a Bible Verse")
+        verse = st.text_area("Paste a Bible verse here:")
+        if st.button("Classify"):
+            if not verse.strip():
+                st.warning("Please enter a verse.")
+            else:
+                with st.spinner("Loading classifier..."):
+                    clf = get_zero_shot_classifier()
+                labels = ["faith","love","hope","salvation","guidance","suffering","peace","justice","community","forgiveness"]
+                result = clf(verse, candidate_labels=labels, multi_label=False)
+                st.success(f"Predicted Topic: **{result['labels'][0]}** (Confidence: {result['scores'][0]:.2f})")
 
-        elif tool == "🌅 Daily Verse":
-            st.subheader("🌞 Your Daily Verse")
-            verse_of_the_day = "“This is the day that the Lord has made; let us rejoice and be glad in it.” – Psalm 118:24"
-            st.success(verse_of_the_day)
+    elif tool == "🌅 Daily Verse":
+        st.subheader("🌞 Your Daily Verse")
+        st.success("“This is the day that the Lord has made; let us rejoice and be glad in it.” – Psalm 118:24")
 
-        elif tool == "🧪 Spiritual Gifts Assessment":
-            gift_assessment_ui() # Call without arguments, as sentiment_analyzer is not used there
-                                 # and joblib.load is handled internally.
+    elif tool == "🧪 Spiritual Gifts Assessment":
+        ui, err = safe_load(lambda: __import__("modules.gift_assessment", fromlist=["gift_assessment_ui"]).gift_assessment_ui)
+        if err:
+            st.error("Gift Assessment failed to load.")
+            st.exception(err)
+        else:
+            ui()
 
-# --- 8. Entry Point for the App ---
-if __name__ == "__main__":
-    main_app()
+main_app()
 
-# --- 9. Credit (Always show) ---
 st.markdown("---")
-st.caption("Built with faith by **Sammy Karuri ✡** | Tukuza Yesu AI Toolkit 🌐")
+st.caption("Built with faith by **Sammy Karuri** | Tukuza Yesu AI Toolkit 🌐")
