@@ -15,7 +15,7 @@ import os
 
 def biblebot_ui():
     # ✅ Setup OpenAI Client
-    api_key = st.secrets.get("OPENAI_API_KEY")
+    api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         st.error("❌ OPENAI_API_KEY not found in environment.")
         return
