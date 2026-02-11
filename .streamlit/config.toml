@@ -1,9 +1,7 @@
 [server]
 headless = true
-scriptName = "app.py" # Move this line under the first [server] block
-
-[browser]
-serverAddress = "localhost" # Consider removing this for cloud deployments
+enableCORS = false
+port = 8501
 
 
 [theme]
