@@ -29,25 +29,19 @@ def gift_assessment_ui():
     model = joblib.load(model_path)
 
     # --- Display Previous Assessment Results ---
-    with get_db_connection() as conn:
+    # with get_db_connection() as conn:
         result = fetch_latest_gift_assessment(current_user_id)
         if result:
-            gr = {
-                "primary": result[0],
-                "secondary": result[1],
-                "primary_role": result[2],
-                "secondary_role": result[3],
-                "ministries": json.loads(result[4]) if result[4] else []
-            }
-
+            r = result.get("results", {}) or {}
             st.markdown("### 💡 Your Last Spiritual Gift Assessment")
             st.info(f"""
-            - 🧠 Primary Gift: **{gr.get('primary', 'N/A')}** ({gr.get('primary_role', 'N/A')})
-            - 🌟 Secondary Gift: **{gr.get('secondary', 'N/A')}** ({gr.get('secondary_role', 'N/A')})
+            - 🧠 Primary Gift: **{r.get('primary_gift', 'N/A')}** ({r.get('primary_role', 'N/A')})
+            - 🌟 Secondary Gift: **{r.get('secondary_gift', 'N/A')}** ({r.get('secondary_role', 'N/A')})
             """)
+
             st.markdown("### 🚀 Suggested Ministry Pathways")
-            for greater, role in enumerate(gr.get("ministries", []), 1):
-                st.markdown(f"- {greater}. **{role}**")
+            for i, role in enumerate(r.get("ministries", []) or [], 1):
+                st.markdown(f"- {i}. **{role}**")
 
             col_buttons_1, col_buttons_2 = st.columns(2)
             with col_buttons_1:
@@ -56,19 +50,7 @@ def gift_assessment_ui():
                 cursor = conn.cursor()
                 import json
 
-            cur.execute(
-                """
-                INSERT INTO gift_assessments (session_id, language, answers_json, results_json)
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    session_id,
-                    language,
-                    json.dumps(answers or {}, ensure_ascii=False),
-                    json.dumps(results or {}, ensure_ascii=False),
-                ),
-            )
-
+            
                 user_profile_row = cursor.fetchone()
                 stage = user_profile_row[0] if user_profile_row else 'N/A'
 
