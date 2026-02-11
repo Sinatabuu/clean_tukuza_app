@@ -54,7 +54,21 @@ def gift_assessment_ui():
                 user_name_for_report = st.session_state.get('user_name', 'N/A')
                 # Fetch stage from database if not in session_state
                 cursor = conn.cursor()
-                cursor.execute("SELECT stage FROM user_profiles WHERE id = %s", (current_user_id,))
+                import json
+
+            cur.execute(
+                """
+                INSERT INTO gift_assessments (session_id, language, answers_json, results_json)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    session_id,
+                    language,
+                    json.dumps(answers or {}, ensure_ascii=False),
+                    json.dumps(results or {}, ensure_ascii=False),
+                ),
+            )
+
                 user_profile_row = cursor.fetchone()
                 stage = user_profile_row[0] if user_profile_row else 'N/A'
 
@@ -211,7 +225,7 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
 
                 ministry_suggestions = recommend_ministries(primary, secondary, gift_ministry_map)
 
-                gift_data = {
+                results = {
                     "primary_gift": primary,
                     "secondary_gift": secondary,
                     "primary_role": primary_role,
@@ -219,11 +233,15 @@ Built with faith by Sammy Karuri ✡ | Tukuza Yesu AI Toolkit 🌐
                     "ministries": ministry_suggestions
                 }
 
-                if insert_gift_assessment(current_user_id, gift_data):
+                new_id = insert_gift_assessment(
+                    session_id=str(current_user_id),
+                    language=str(user_lang),
+                    answers={"responses": responses},
+                    results=results,
+                )
+
+                if new_id:
                     st.success("Your assessment has been saved!")
                     st.rerun()
                 else:
                     st.error("Failed to save assessment. Please try again.")
-
-            except Exception as e:
-                st.error(f"⚠️ Error during prediction or saving: {str(e)}")
