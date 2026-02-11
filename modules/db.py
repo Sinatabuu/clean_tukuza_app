@@ -93,7 +93,7 @@ def create_user_profile(name: str, email: str | None, stage: str):
         conn.close()
 
 
-raise RuntimeError("DEBUG: db.py insert_gift_assessment UPDATED")
+#raise RuntimeError("DEBUG: db.py insert_gift_assessment UPDATED")
 
 def insert_gift_assessment(session_id, language=None, answers=None, results=None):
     # Defensive: if someone accidentally passed a dict as 2nd arg
