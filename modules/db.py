@@ -7,6 +7,9 @@ from psycopg2.extras import RealDictCursor, Json
 
 
 def get_db_connection():
+    import psycopg2
+    import streamlit as st
+
     return psycopg2.connect(
         host=st.secrets["DB"]["DB_HOST"],
         port=st.secrets["DB"]["DB_PORT"],
@@ -15,6 +18,7 @@ def get_db_connection():
         password=st.secrets["DB"]["DB_PASSWORD"],
         sslmode="require",
     )
+
 
 
 def run_schema_upgrades():

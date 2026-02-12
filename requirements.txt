@@ -1,17 +1,16 @@
 streamlit>=1.31.0
 
+# DB (Neon / Postgres)
+psycopg2-binary>=2.9.9
+
+# LLM + translation
 openai
 langdetect
 deep-translator
 
+# Gift assessment ML model
 joblib
-scikit-learn
+scikit-learn==1.7.0
+
 numpy
 pandas
-
-transformers>=4.41.0
-torch>=2.2.0
-
-psycopg2-binary>=2.9.9
-
-streamlit-webrtc>=0.47.0
