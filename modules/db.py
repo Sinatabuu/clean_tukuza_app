@@ -167,6 +167,7 @@ def fetch_latest_gift_assessment(session_id):
 
 
 
+
 def delete_gift_assessment_for_user(session_id):
     conn = get_db_connection()
     try:
