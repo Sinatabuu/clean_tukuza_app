@@ -1,6 +1,6 @@
 import streamlit as st
 import psycopg2
-from psycopg2.extras import Json
+from psycopg2.extras import RealDictCursor, Json
 
 
 
@@ -142,16 +142,29 @@ def fetch_latest_gift_assessment(session_id):
             if not row:
                 return None
 
+            def safe_parse(val):
+                if val is None:
+                    return {}
+                if isinstance(val, (dict, list)):
+                    return val
+                if isinstance(val, str):
+                    try:
+                        return json.loads(val)
+                    except Exception:
+                        return {}
+                return {}
+
             return {
                 "id": row["id"],
                 "created_at": row["created_at"],
                 "session_id": row["session_id"],
                 "language": row["language"],
-                "answers": json.loads(row["answers_json"] or "{}"),
-                "results": json.loads(row["results_json"] or "{}"),
+                "answers": safe_parse(row["answers_json"]),
+                "results": safe_parse(row["results_json"]),
             }
     finally:
         conn.close()
+
 
 
 def delete_gift_assessment_for_user(session_id):
