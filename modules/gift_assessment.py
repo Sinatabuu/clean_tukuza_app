@@ -11,7 +11,14 @@ from modules.db import (
 )
 
 from modules.gifts_engine import QUESTIONS_EN, TIEBREAKER, score_gifts, apply_tiebreak
+from modules.db import fetch_recent_gift_assessments
 
+def _confidence_label(margin: float) -> str:
+    if margin >= 0.35:
+        return "High"
+    if margin >= 0.20:
+        return "Medium"
+    return "Low"
 
 def _detect_language(sample_text: str) -> str:
     """Return language code supported by GoogleTranslator; default to 'en'."""
@@ -40,6 +47,27 @@ def _translate_list(items, user_lang: str):
     except Exception:
         return items
 
+def _compute_trait_ema(attempts, alpha=0.30):
+    """
+    attempts: list of recent assessments newest->oldest
+    returns: trait_scores dict
+    """
+    # reverse so oldest -> newest for EMA
+    attempts = list(reversed(attempts))
+
+    trait = None
+    for a in attempts:
+        scores = (a.get("results", {}) or {}).get("scores", {}) or {}
+        if not scores:
+            continue
+        if trait is None:
+            trait = {k: float(v) for k, v in scores.items()}
+        else:
+            for k, v in scores.items():
+                trait[k] = (1 - alpha) * trait.get(k, 0.0) + alpha * float(v)
+
+    return trait or {}
+
 
 def gift_assessment_ui():
     st.subheader("🧪 Spiritual Gifts Assessment")
@@ -50,12 +78,31 @@ def gift_assessment_ui():
         return
 
     current_user_id = st.session_state.user_id
+    recent = fetch_recent_gift_assessments(current_user_id, limit=5)
+    trait_scores = _compute_trait_ema(recent, alpha=0.30)
+
+    # Trait top3
+    trait_top3 = sorted(trait_scores.items(), key=lambda kv: kv[1], reverse=True)[:3]
+    trait_top3 = r.get("trait_top3")
+    if trait_top3:
+        st.markdown("#### Stable Trait Top 3 (across retakes)")
+        for i, item in enumerate(trait_top3, 1):
+            st.markdown(f"- {i}. **{item.get('gift')}** (trait: {round(float(item.get('score', 0.0)), 3)})")
 
     # --- Display Previous Assessment Results ---
-    result = fetch_latest_gift_assessment(current_user_id)
+    results = {
+        ...
+        "confidence": _confidence_label(float(final.margin)),
+        "trait_scores": trait_scores,
+        "trait_top3": [{"gift": g, "score": float(s)} for g, s in trait_top3],
+        "trait_engine": "ema_alpha_0.30_last5",
+}
+
     if result:
         r = result.get("results", {}) or {}
         top3 = r.get("top3", []) or []
+        with st.expander("🛠 Debug: full saved row"):
+            st.json(result)
 
         st.markdown("### 💡 Your Last Spiritual Gifts Result")
         margin = r.get("margin", 0.0)
@@ -64,11 +111,13 @@ def gift_assessment_ui():
         except Exception:
             margin = 0.0
 
+        conf = _confidence_label(margin)
         st.info(
             f"- 🧠 Primary Gift: **{r.get('primary_gift', 'N/A')}**\n"
             f"- 🌟 Secondary Gift: **{r.get('secondary_gift', 'N/A')}**\n"
-            f"- 🎯 Confidence Margin: **{round(margin, 3)}**"
+            f"- 🎯 Confidence: **{conf}** (margin: {round(margin, 3)})"
         )
+
 
         if top3:
             st.markdown("#### Top 3 Gifts")
