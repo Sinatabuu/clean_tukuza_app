@@ -198,6 +198,7 @@ def gift_assessment_ui():
 
     if submitted:
         base = score_gifts(responses)
+        st.write("DEBUG:", base.primary, base.secondary, "margin=", float(base.margin), "needs_tiebreak=", base.needs_tiebreak) #temp debug
 
         # store for tie-break rerun
         st.session_state["gifts_last_responses"] = responses
