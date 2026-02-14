@@ -9,7 +9,7 @@ from modules.db import (
     fetch_latest_gift_assessment,
     delete_gift_assessment_for_user,
 )
-
+from modules.gifts_engine import GiftResult  # add near imports
 from modules.gifts_engine import QUESTIONS_EN, TIEBREAKER, score_gifts, apply_tiebreak
 from modules.db import fetch_recent_gift_assessments
 
@@ -91,7 +91,7 @@ def gift_assessment_ui():
 
     # --- Display Previous Assessment Results ---
     results = {
-        ...
+        
         "confidence": _confidence_label(float(final.margin)),
         "trait_scores": trait_scores,
         "trait_top3": [{"gift": g, "score": float(s)} for g, s in trait_top3],
@@ -201,10 +201,16 @@ def gift_assessment_ui():
 
     questions = _translate_list(QUESTIONS_EN, user_lang)
 
-    # --- Core Form ---
+
+
+# --- Core Form ---
 with st.form("gifts_core_form"):
     responses = [
-        st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_core_{i}_{current_user_id}")
+        st.slider(
+            f"{i+1}. {q}",
+            1, 5, 3,
+            key=f"gift_core_{i}_{current_user_id}",
+        )
         for i, q in enumerate(questions)
     ]
     submitted = st.form_submit_button("🎯 Calculate My Gifts")
@@ -212,25 +218,18 @@ with st.form("gifts_core_form"):
 if submitted:
     base = score_gifts(responses)
 
-    # Save the attempt in session_state so tie-breaker can run on next submit
+    # Store base + responses so tie-break submission can finish later
     st.session_state["gifts_last_responses"] = responses
     st.session_state["gifts_pending_base"] = {
-        "primary": base.primary,
-        "secondary": base.secondary,
-        "needs_tiebreak": base.needs_tiebreak,
-    }
-
-    # Also store the base scores/top3 in a safe json form (so we can rebuild)
-    st.session_state["gifts_pending_base_full"] = {
         "scores": {k: float(v) for k, v in base.scores.items()},
-        "top3": [{"gift": g, "score": float(s)} for g, s in base.top3],
+        "top3": [(g, float(s)) for g, s in base.top3],
         "primary": base.primary,
         "secondary": base.secondary,
         "margin": float(base.margin),
         "needs_tiebreak": bool(base.needs_tiebreak),
     }
 
-    # If no tie-break needed, save immediately
+    # If no tie-break, save immediately
     if not base.needs_tiebreak:
         results = {
             "engine": "gifts_v2_deterministic",
@@ -249,20 +248,18 @@ if submitted:
             results=results,
         )
 
-        # clear pending
         st.session_state.pop("gifts_pending_base", None)
-        st.session_state.pop("gifts_pending_base_full", None)
         st.session_state.pop("gifts_last_responses", None)
 
         st.success("✅ Saved! Your results will appear above.")
         st.rerun()
 
-# --- Tie-breaker Form (OUTSIDE the core submit block) ---
-pending = st.session_state.get("gifts_pending_base_full")
+# --- Tie-breaker Form (rendered independently) ---
+pending = st.session_state.get("gifts_pending_base")
 
 if pending and pending.get("needs_tiebreak"):
     st.warning("Your top two gifts are very close. Answer 6 quick tie-breaker questions for accuracy.")
-    st.caption("Scroll down to answer the 6 tie-breaker questions, then click “Finalize Result.”")
+    st.caption("Scroll down, answer the questions, then click “✅ Finalize Result.”")
 
     primary = pending["primary"]
     secondary = pending["secondary"]
@@ -286,12 +283,9 @@ if pending and pending.get("needs_tiebreak"):
         tie_submit = st.form_submit_button("✅ Finalize Result")
 
     if tie_submit:
-        # rebuild GiftResult from stored base
-        from modules.gifts_engine import GiftResult
-
         base_obj = GiftResult(
             scores=pending["scores"],
-            top3=[(x["gift"], x["score"]) for x in pending["top3"]],
+            top3=pending["top3"],
             primary=pending["primary"],
             secondary=pending["secondary"],
             margin=pending["margin"],
@@ -319,10 +313,9 @@ if pending and pending.get("needs_tiebreak"):
             results=results,
         )
 
-        # clear pending
         st.session_state.pop("gifts_pending_base", None)
-        st.session_state.pop("gifts_pending_base_full", None)
         st.session_state.pop("gifts_last_responses", None)
 
         st.success("✅ Saved! Your finalized results will appear above.")
         st.rerun()
+
