@@ -13,6 +13,8 @@ from modules.db import (
 
 from modules.gifts_engine import GiftResult, QUESTIONS_EN, TIEBREAKER, score_gifts, apply_tiebreak
 
+def _mark_finalize():
+    st.session_state["gifts_finalize_clicked"] = True
 
 def _confidence_label(margin: float) -> str:
     if margin >= 0.35:
@@ -266,49 +268,50 @@ def gift_assessment_ui():
                 for j, q in enumerate(ts)
             ]
 
-            tie_submit = st.form_submit_button("✅ Finalize Result")
+            tie_submit = st.form_submit_button("✅ Finalize Result", on_click=_mark_finalize)
 
-        if tie_submit:
-            base_obj = GiftResult(
-                scores=pending["scores"],
-                top3=pending["top3"],
-                primary=pending["primary"],
-                secondary=pending["secondary"],
-                margin=pending["margin"],
-                needs_tiebreak=True,
-            )
 
-            final = apply_tiebreak(base_obj, tie_primary, tie_secondary)
-            responses = st.session_state.get("gifts_last_responses", [])
+        if st.session_state.get("gifts_finalize_clicked"):
+            st.session_state["gifts_finalize_clicked"] = False  # reset immediately
 
-            # trait from recent attempts (after finalize)
-            recent = fetch_recent_gift_assessments(current_user_id, limit=5)
-            trait_scores = _compute_trait_ema(recent, alpha=0.30)
-            trait_top3 = sorted(trait_scores.items(), key=lambda kv: kv[1], reverse=True)[:3] if trait_scores else []
+    try:
+        base_obj = GiftResult(
+            scores=pending["scores"],
+            top3=pending["top3"],
+            primary=pending["primary"],
+            secondary=pending["secondary"],
+            margin=pending["margin"],
+            needs_tiebreak=True,
+        )
 
-            results = {
-                "engine": "gifts_v2_deterministic",
-                "primary_gift": final.primary,
-                "secondary_gift": final.secondary,
-                "top3": [{"gift": g, "score": float(s)} for g, s in final.top3],
-                "scores": {k: float(v) for k, v in final.scores.items()},
-                "margin": float(final.margin),
-                "confidence": _confidence_label(float(final.margin)),
-                "used_tiebreak": True,
-                "trait_engine": "ema_alpha_0.30_last5",
-                "trait_scores": trait_scores,
-                "trait_top3": [{"gift": g, "score": float(s)} for g, s in trait_top3],
-            }
+        final = apply_tiebreak(base_obj, tie_primary, tie_secondary)
+        responses = st.session_state.get("gifts_last_responses", [])
 
-            insert_gift_assessment(
-                session_id=str(current_user_id),
-                language=str(user_lang),
-                answers={"responses": responses},
-                results=results,
-            )
+        results = {
+            "engine": "gifts_v2_deterministic",
+            "primary_gift": final.primary,
+            "secondary_gift": final.secondary,
+            "top3": [{"gift": g, "score": float(s)} for g, s in final.top3],
+            "scores": {k: float(v) for k, v in final.scores.items()},
+            "margin": float(final.margin),
+            "confidence": _confidence_label(float(final.margin)),
+            "used_tiebreak": True,
+        }
 
-            st.session_state.pop("gifts_pending_base", None)
-            st.session_state.pop("gifts_last_responses", None)
+        insert_gift_assessment(
+            session_id=str(current_user_id),
+            language=str(user_lang),
+            answers={"responses": responses},
+            results=results,
+        )
 
-            st.success("✅ Saved! Your finalized results will appear above.")
-            st.rerun()
+        st.session_state.pop("gifts_pending_base", None)
+        st.session_state.pop("gifts_last_responses", None)
+
+        st.success("✅ Saved! Your finalized results will appear above.")
+        st.rerun()
+
+    except Exception as e:
+        st.error("Finalize failed—see details below:")
+        st.exception(e)
+
