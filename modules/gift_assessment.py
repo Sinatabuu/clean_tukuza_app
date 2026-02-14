@@ -27,15 +27,15 @@ def gift_assessment_ui():
 
     
     result = fetch_latest_gift_assessment(current_user_id)
-if result:
-    r = result.get("results", {}) or {}
-    top3 = r.get("top3", []) or []
+    if result:
+        r = result.get("results", {}) or {}
+        top3 = r.get("top3", []) or []
 
-    st.markdown("### 💡 Your Last Spiritual Gifts Result")
-    st.info(
-        f"- 🧠 Primary Gift: **{r.get('primary_gift', 'N/A')}**\n"
-        f"- 🌟 Secondary Gift: **{r.get('secondary_gift', 'N/A')}**\n"
-        f"- 🎯 Confidence Margin: **{round(float(r.get('margin', 0.0)), 3)}**"
+        st.markdown("### 💡 Your Last Spiritual Gifts Result")
+        st.info(
+            f"- 🧠 Primary Gift: **{r.get('primary_gift', 'N/A')}**\n"
+            f"- 🌟 Secondary Gift: **{r.get('secondary_gift', 'N/A')}**\n"
+            f"- 🎯 Confidence Margin: **{round(float(r.get('margin', 0.0)), 3)}**"
     )
 
     if top3:
