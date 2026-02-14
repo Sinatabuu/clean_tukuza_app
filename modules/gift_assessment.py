@@ -244,74 +244,79 @@ def gift_assessment_ui():
             st.rerun()
 
     # --- Tie-breaker Form (independent) ---
+    # --- Tie-breaker (NO form; reliable) ---
     pending = st.session_state.get("gifts_pending_base")
     if pending and pending.get("needs_tiebreak"):
         st.warning("Your top two gifts are very close. Answer 6 quick tie-breaker questions for accuracy.")
         st.caption("Answer the 6 questions below, then click “✅ Finalize Result.”")
 
+        # Create a stable attempt id so widget keys never collide
+        if "gifts_attempt_id" not in st.session_state:
+            st.session_state["gifts_attempt_id"] = 1
+
+        attempt_id = st.session_state["gifts_attempt_id"]
         primary = pending["primary"]
         secondary = pending["secondary"]
 
         tp = _translate_list(TIEBREAKER[primary], user_lang)
         ts = _translate_list(TIEBREAKER[secondary], user_lang)
 
-        with st.form("gifts_tiebreak_form"):
-            st.markdown(f"### Tie-breaker: {primary}")
-            tie_primary = [
-                st.slider(q, 1, 5, 3, key=f"tie_{primary}_{j}_{current_user_id}")
-                for j, q in enumerate(tp)
-            ]
+        st.markdown(f"### Tie-breaker: {primary}")
+        tie_primary = [
+            st.slider(q, 1, 5, 3, key=f"tie_{attempt_id}_{primary}_{j}_{current_user_id}")
+            for j, q in enumerate(tp)
+        ]
 
-            st.markdown(f"### Tie-breaker: {secondary}")
-            tie_secondary = [
-                st.slider(q, 1, 5, 3, key=f"tie_{secondary}_{j}_{current_user_id}")
-                for j, q in enumerate(ts)
-            ]
+        st.markdown(f"### Tie-breaker: {secondary}")
+        tie_secondary = [
+            st.slider(q, 1, 5, 3, key=f"tie_{attempt_id}_{secondary}_{j}_{current_user_id}")
+            for j, q in enumerate(ts)
+        ]
 
-            tie_submit = st.form_submit_button("✅ Finalize Result", on_click=_mark_finalize)
+        if st.button("✅ Finalize Result", key=f"finalize_{attempt_id}_{current_user_id}"):
+            try:
+                base_obj = GiftResult(
+                    scores=pending["scores"],
+                    top3=pending["top3"],
+                    primary=pending["primary"],
+                    secondary=pending["secondary"],
+                    margin=pending["margin"],
+                    needs_tiebreak=True,
+                )
 
+                final = apply_tiebreak(base_obj, tie_primary, tie_secondary)
+                responses = st.session_state.get("gifts_last_responses", [])
 
-        if st.session_state.get("gifts_finalize_clicked"):
-            st.session_state["gifts_finalize_clicked"] = False  # reset immediately
+                results = {
+                    "engine": "gifts_v2_deterministic",
+                    "primary_gift": final.primary,
+                    "secondary_gift": final.secondary,
+                    "top3": [{"gift": g, "score": float(s)} for g, s in final.top3],
+                    "scores": {k: float(v) for k, v in final.scores.items()},
+                    "margin": float(final.margin),
+                    "confidence": _confidence_label(float(final.margin)),
+                    "used_tiebreak": True,
+                }
 
-    try:
-        base_obj = GiftResult(
-            scores=pending["scores"],
-            top3=pending["top3"],
-            primary=pending["primary"],
-            secondary=pending["secondary"],
-            margin=pending["margin"],
-            needs_tiebreak=True,
-        )
+                with st.spinner("Saving your finalized result..."):
+                    insert_gift_assessment(
+                        session_id=str(current_user_id),
+                        language=str(user_lang),
+                        answers={"responses": responses},
+                        results=results,
+                    )
 
-        final = apply_tiebreak(base_obj, tie_primary, tie_secondary)
-        responses = st.session_state.get("gifts_last_responses", [])
+                # Clear pending so the tie-break section disappears
+                st.session_state.pop("gifts_pending_base", None)
+                st.session_state.pop("gifts_last_responses", None)
 
-        results = {
-            "engine": "gifts_v2_deterministic",
-            "primary_gift": final.primary,
-            "secondary_gift": final.secondary,
-            "top3": [{"gift": g, "score": float(s)} for g, s in final.top3],
-            "scores": {k: float(v) for k, v in final.scores.items()},
-            "margin": float(final.margin),
-            "confidence": _confidence_label(float(final.margin)),
-            "used_tiebreak": True,
-        }
+                # Bump attempt id so keys change next time
+                st.session_state["gifts_attempt_id"] = attempt_id + 1
 
-        insert_gift_assessment(
-            session_id=str(current_user_id),
-            language=str(user_lang),
-            answers={"responses": responses},
-            results=results,
-        )
+                st.success("✅ Saved! Your finalized results will appear above.")
+                st.rerun()
 
-        st.session_state.pop("gifts_pending_base", None)
-        st.session_state.pop("gifts_last_responses", None)
-
-        st.success("✅ Saved! Your finalized results will appear above.")
-        st.rerun()
-
-    except Exception as e:
-        st.error("Finalize failed—see details below:")
-        st.exception(e)
+            except Exception as e:
+                st.error("Finalize failed—details below:")
+                st.exception(e)
 
