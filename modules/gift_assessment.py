@@ -8,10 +8,11 @@ from modules.db import (
     insert_gift_assessment,
     fetch_latest_gift_assessment,
     delete_gift_assessment_for_user,
+    fetch_recent_gift_assessments,
 )
-from modules.gifts_engine import GiftResult  # add near imports
-from modules.gifts_engine import QUESTIONS_EN, TIEBREAKER, score_gifts, apply_tiebreak
-from modules.db import fetch_recent_gift_assessments
+
+from modules.gifts_engine import GiftResult, QUESTIONS_EN, TIEBREAKER, score_gifts, apply_tiebreak
+
 
 def _confidence_label(margin: float) -> str:
     if margin >= 0.35:
@@ -20,25 +21,19 @@ def _confidence_label(margin: float) -> str:
         return "Medium"
     return "Low"
 
-def _detect_language(sample_text: str) -> str:
-    """Return language code supported by GoogleTranslator; default to 'en'."""
-    user_lang = "en"
-    if not sample_text or not sample_text.strip():
-        return user_lang
 
+def _detect_language(sample_text: str) -> str:
+    if not sample_text or not sample_text.strip():
+        return "en"
     try:
         supported = list(GoogleTranslator().get_supported_languages(as_dict=True).values())
-        detected = detect(sample_text)
-        if detected in supported:
-            return detected
+        lang = detect(sample_text)
+        return lang if lang in supported else "en"
     except Exception:
-        pass
-
-    return "en"
+        return "en"
 
 
 def _translate_list(items, user_lang: str):
-    """Translate a list of English strings to user_lang; fallback to English."""
     if user_lang == "en":
         return items
     try:
@@ -47,14 +42,13 @@ def _translate_list(items, user_lang: str):
     except Exception:
         return items
 
+
 def _compute_trait_ema(attempts, alpha=0.30):
     """
-    attempts: list of recent assessments newest->oldest
+    attempts: list of assessments newest->oldest, each has {results: {scores:{...}}}
     returns: trait_scores dict
     """
-    # reverse so oldest -> newest for EMA
-    attempts = list(reversed(attempts))
-
+    attempts = list(reversed(attempts))  # oldest->newest
     trait = None
     for a in attempts:
         scores = (a.get("results", {}) or {}).get("scores", {}) or {}
@@ -65,46 +59,27 @@ def _compute_trait_ema(attempts, alpha=0.30):
         else:
             for k, v in scores.items():
                 trait[k] = (1 - alpha) * trait.get(k, 0.0) + alpha * float(v)
-
     return trait or {}
 
 
 def gift_assessment_ui():
     st.subheader("🧪 Spiritual Gifts Assessment")
 
-    # Ensure user is authenticated
+    # auth
     if "user_id" not in st.session_state or st.session_state.user_id is None:
         st.warning("⚠️ Please log in or create your discipleship profile before continuing.")
         return
 
     current_user_id = st.session_state.user_id
-    recent = fetch_recent_gift_assessments(current_user_id, limit=5)
-    trait_scores = _compute_trait_ema(recent, alpha=0.30)
 
-    # Trait top3
-    trait_top3 = sorted(trait_scores.items(), key=lambda kv: kv[1], reverse=True)[:3]
-    trait_top3 = r.get("trait_top3")
-    if trait_top3:
-        st.markdown("#### Stable Trait Top 3 (across retakes)")
-        for i, item in enumerate(trait_top3, 1):
-            st.markdown(f"- {i}. **{item.get('gift')}** (trait: {round(float(item.get('score', 0.0)), 3)})")
-
-    # --- Display Previous Assessment Results ---
-    results = {
-        
-        "confidence": _confidence_label(float(final.margin)),
-        "trait_scores": trait_scores,
-        "trait_top3": [{"gift": g, "score": float(s)} for g, s in trait_top3],
-        "trait_engine": "ema_alpha_0.30_last5",
-}
-
+    # --- Display previous assessment (latest) ---
+    result = fetch_latest_gift_assessment(current_user_id)
     if result:
         r = result.get("results", {}) or {}
         top3 = r.get("top3", []) or []
-        with st.expander("🛠 Debug: full saved row"):
-            st.json(result)
 
         st.markdown("### 💡 Your Last Spiritual Gifts Result")
+
         margin = r.get("margin", 0.0)
         try:
             margin = float(margin)
@@ -112,12 +87,12 @@ def gift_assessment_ui():
             margin = 0.0
 
         conf = _confidence_label(margin)
+
         st.info(
             f"- 🧠 Primary Gift: **{r.get('primary_gift', 'N/A')}**\n"
             f"- 🌟 Secondary Gift: **{r.get('secondary_gift', 'N/A')}**\n"
             f"- 🎯 Confidence: **{conf}** (margin: {round(margin, 3)})"
         )
-
 
         if top3:
             st.markdown("#### Top 3 Gifts")
@@ -129,6 +104,16 @@ def gift_assessment_ui():
                 except Exception:
                     score = 0.0
                 st.markdown(f"- {i}. **{gift}** (score: {round(score, 3)})")
+
+        # ---- Trait stability block (computed from recent attempts) ----
+        recent = fetch_recent_gift_assessments(current_user_id, limit=5)
+        trait_scores = _compute_trait_ema(recent, alpha=0.30)
+
+        if trait_scores:
+            trait_top3 = sorted(trait_scores.items(), key=lambda kv: kv[1], reverse=True)[:3]
+            st.markdown("#### Stable Trait Top 3 (across retakes)")
+            for i, (g, s) in enumerate(trait_top3, 1):
+                st.markdown(f"- {i}. **{g}** (trait: {round(float(s), 3)})")
 
         col1, col2 = st.columns(2)
 
@@ -142,10 +127,10 @@ def gift_assessment_ui():
                 "",
                 f"Primary Gift: {r.get('primary_gift', 'N/A')}",
                 f"Secondary Gift: {r.get('secondary_gift', 'N/A')}",
+                f"Confidence: {conf} (margin: {round(margin, 3)})",
                 "",
                 "Top 3:",
             ]
-
             for i, item in enumerate(top3, 1):
                 gift = item.get("gift", "N/A")
                 score = item.get("score", 0.0)
@@ -180,7 +165,7 @@ def gift_assessment_ui():
 
     st.markdown("---")
 
-    # --- New Assessment Form ---
+    # --- New Assessment ---
     st.subheader("Take a New Spiritual Gifts Assessment")
 
     sample_input = st.text_input(
@@ -201,121 +186,129 @@ def gift_assessment_ui():
 
     questions = _translate_list(QUESTIONS_EN, user_lang)
 
+    # --- Core Form ---
+    with st.form("gifts_core_form"):
+        responses = [
+            st.slider(f"{i+1}. {q}", 1, 5, 3, key=f"gift_core_{i}_{current_user_id}")
+            for i, q in enumerate(questions)
+        ]
+        submitted = st.form_submit_button("🎯 Calculate My Gifts")
 
+    if submitted:
+        base = score_gifts(responses)
 
-# --- Core Form ---
-with st.form("gifts_core_form"):
-    responses = [
-        st.slider(
-            f"{i+1}. {q}",
-            1, 5, 3,
-            key=f"gift_core_{i}_{current_user_id}",
-        )
-        for i, q in enumerate(questions)
-    ]
-    submitted = st.form_submit_button("🎯 Calculate My Gifts")
-
-if submitted:
-    base = score_gifts(responses)
-
-    # Store base + responses so tie-break submission can finish later
-    st.session_state["gifts_last_responses"] = responses
-    st.session_state["gifts_pending_base"] = {
-        "scores": {k: float(v) for k, v in base.scores.items()},
-        "top3": [(g, float(s)) for g, s in base.top3],
-        "primary": base.primary,
-        "secondary": base.secondary,
-        "margin": float(base.margin),
-        "needs_tiebreak": bool(base.needs_tiebreak),
-    }
-
-    # If no tie-break, save immediately
-    if not base.needs_tiebreak:
-        results = {
-            "engine": "gifts_v2_deterministic",
-            "primary_gift": base.primary,
-            "secondary_gift": base.secondary,
-            "top3": [{"gift": g, "score": float(s)} for g, s in base.top3],
+        # store for tie-break rerun
+        st.session_state["gifts_last_responses"] = responses
+        st.session_state["gifts_pending_base"] = {
             "scores": {k: float(v) for k, v in base.scores.items()},
+            "top3": [(g, float(s)) for g, s in base.top3],
+            "primary": base.primary,
+            "secondary": base.secondary,
             "margin": float(base.margin),
-            "used_tiebreak": False,
+            "needs_tiebreak": bool(base.needs_tiebreak),
         }
 
-        insert_gift_assessment(
-            session_id=str(current_user_id),
-            language=str(user_lang),
-            answers={"responses": responses},
-            results=results,
-        )
+        if not base.needs_tiebreak:
+            # compute trait from recent + this attempt (optional)
+            recent = fetch_recent_gift_assessments(current_user_id, limit=5)
+            trait_scores = _compute_trait_ema(recent, alpha=0.30)
+            trait_top3 = sorted(trait_scores.items(), key=lambda kv: kv[1], reverse=True)[:3] if trait_scores else []
 
-        st.session_state.pop("gifts_pending_base", None)
-        st.session_state.pop("gifts_last_responses", None)
+            results = {
+                "engine": "gifts_v2_deterministic",
+                "primary_gift": base.primary,
+                "secondary_gift": base.secondary,
+                "top3": [{"gift": g, "score": float(s)} for g, s in base.top3],
+                "scores": {k: float(v) for k, v in base.scores.items()},
+                "margin": float(base.margin),
+                "confidence": _confidence_label(float(base.margin)),
+                "used_tiebreak": False,
+                "trait_engine": "ema_alpha_0.30_last5",
+                "trait_scores": trait_scores,
+                "trait_top3": [{"gift": g, "score": float(s)} for g, s in trait_top3],
+            }
 
-        st.success("✅ Saved! Your results will appear above.")
-        st.rerun()
+            insert_gift_assessment(
+                session_id=str(current_user_id),
+                language=str(user_lang),
+                answers={"responses": responses},
+                results=results,
+            )
 
-# --- Tie-breaker Form (rendered independently) ---
-pending = st.session_state.get("gifts_pending_base")
+            st.session_state.pop("gifts_pending_base", None)
+            st.session_state.pop("gifts_last_responses", None)
 
-if pending and pending.get("needs_tiebreak"):
-    st.warning("Your top two gifts are very close. Answer 6 quick tie-breaker questions for accuracy.")
-    st.caption("Scroll down, answer the questions, then click “✅ Finalize Result.”")
+            st.success("✅ Saved! Your results will appear above.")
+            st.rerun()
 
-    primary = pending["primary"]
-    secondary = pending["secondary"]
+    # --- Tie-breaker Form (independent) ---
+    pending = st.session_state.get("gifts_pending_base")
+    if pending and pending.get("needs_tiebreak"):
+        st.warning("Your top two gifts are very close. Answer 6 quick tie-breaker questions for accuracy.")
+        st.caption("Answer the 6 questions below, then click “✅ Finalize Result.”")
 
-    tp = _translate_list(TIEBREAKER[primary], user_lang)
-    ts = _translate_list(TIEBREAKER[secondary], user_lang)
+        primary = pending["primary"]
+        secondary = pending["secondary"]
 
-    with st.form("gifts_tiebreak_form"):
-        st.markdown(f"### Tie-breaker: {primary}")
-        tie_primary = [
-            st.slider(q, 1, 5, 3, key=f"tie_{primary}_{j}_{current_user_id}")
-            for j, q in enumerate(tp)
-        ]
+        tp = _translate_list(TIEBREAKER[primary], user_lang)
+        ts = _translate_list(TIEBREAKER[secondary], user_lang)
 
-        st.markdown(f"### Tie-breaker: {secondary}")
-        tie_secondary = [
-            st.slider(q, 1, 5, 3, key=f"tie_{secondary}_{j}_{current_user_id}")
-            for j, q in enumerate(ts)
-        ]
+        with st.form("gifts_tiebreak_form"):
+            st.markdown(f"### Tie-breaker: {primary}")
+            tie_primary = [
+                st.slider(q, 1, 5, 3, key=f"tie_{primary}_{j}_{current_user_id}")
+                for j, q in enumerate(tp)
+            ]
 
-        tie_submit = st.form_submit_button("✅ Finalize Result")
+            st.markdown(f"### Tie-breaker: {secondary}")
+            tie_secondary = [
+                st.slider(q, 1, 5, 3, key=f"tie_{secondary}_{j}_{current_user_id}")
+                for j, q in enumerate(ts)
+            ]
 
-    if tie_submit:
-        base_obj = GiftResult(
-            scores=pending["scores"],
-            top3=pending["top3"],
-            primary=pending["primary"],
-            secondary=pending["secondary"],
-            margin=pending["margin"],
-            needs_tiebreak=True,
-        )
+            tie_submit = st.form_submit_button("✅ Finalize Result")
 
-        final = apply_tiebreak(base_obj, tie_primary, tie_secondary)
+        if tie_submit:
+            base_obj = GiftResult(
+                scores=pending["scores"],
+                top3=pending["top3"],
+                primary=pending["primary"],
+                secondary=pending["secondary"],
+                margin=pending["margin"],
+                needs_tiebreak=True,
+            )
 
-        responses = st.session_state.get("gifts_last_responses", [])
+            final = apply_tiebreak(base_obj, tie_primary, tie_secondary)
+            responses = st.session_state.get("gifts_last_responses", [])
 
-        results = {
-            "engine": "gifts_v2_deterministic",
-            "primary_gift": final.primary,
-            "secondary_gift": final.secondary,
-            "top3": [{"gift": g, "score": float(s)} for g, s in final.top3],
-            "scores": {k: float(v) for k, v in final.scores.items()},
-            "margin": float(final.margin),
-            "used_tiebreak": True,
-        }
+            # trait from recent attempts (after finalize)
+            recent = fetch_recent_gift_assessments(current_user_id, limit=5)
+            trait_scores = _compute_trait_ema(recent, alpha=0.30)
+            trait_top3 = sorted(trait_scores.items(), key=lambda kv: kv[1], reverse=True)[:3] if trait_scores else []
 
-        insert_gift_assessment(
-            session_id=str(current_user_id),
-            language=str(user_lang),
-            answers={"responses": responses},
-            results=results,
-        )
+            results = {
+                "engine": "gifts_v2_deterministic",
+                "primary_gift": final.primary,
+                "secondary_gift": final.secondary,
+                "top3": [{"gift": g, "score": float(s)} for g, s in final.top3],
+                "scores": {k: float(v) for k, v in final.scores.items()},
+                "margin": float(final.margin),
+                "confidence": _confidence_label(float(final.margin)),
+                "used_tiebreak": True,
+                "trait_engine": "ema_alpha_0.30_last5",
+                "trait_scores": trait_scores,
+                "trait_top3": [{"gift": g, "score": float(s)} for g, s in trait_top3],
+            }
 
-        st.session_state.pop("gifts_pending_base", None)
-        st.session_state.pop("gifts_last_responses", None)
+            insert_gift_assessment(
+                session_id=str(current_user_id),
+                language=str(user_lang),
+                answers={"responses": responses},
+                results=results,
+            )
 
-        st.success("✅ Saved! Your finalized results will appear above.")
-        st.rerun()
+            st.session_state.pop("gifts_pending_base", None)
+            st.session_state.pop("gifts_last_responses", None)
 
+            st.success("✅ Saved! Your finalized results will appear above.")
+            st.rerun()
