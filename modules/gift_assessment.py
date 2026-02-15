@@ -40,7 +40,9 @@ def _translate_list(items, user_lang: str):
         return items
     try:
         tr = GoogleTranslator(source="en", target=user_lang)
-        return [tr.translate(x) for x in items]
+        full_text = " ||| ".join(items)
+        translated_block = tr.translate(full_text)
+        return [x.strip() for x in translated_block.split("|||")]
     except Exception:
         return items
 
@@ -65,6 +67,7 @@ def _compute_trait_ema(attempts, alpha=0.30):
 
 
 def gift_assessment_ui():
+    st.write("TRACE A: gift_assessment_ui entered ✅")
     st.subheader("🧪 Spiritual Gifts Assessment")
 
     # auth
@@ -73,7 +76,7 @@ def gift_assessment_ui():
         return
 
     current_user_id = st.session_state.user_id
-
+    st.write("TRACE B: user ok ✅", current_user_id)
     # --- Display previous assessment (latest) ---
     result = fetch_latest_gift_assessment(current_user_id)
     if result:
@@ -187,6 +190,7 @@ def gift_assessment_ui():
     st.caption("This section measures edification gifts (not fivefold office calling).")
 
     questions = _translate_list(QUESTIONS_EN, user_lang)
+    st.write("TRACE C: rendering core form ✅")
 
     # --- Core Form ---
     with st.form("gifts_core_form"):
@@ -198,6 +202,8 @@ def gift_assessment_ui():
 
     if submitted:
         base = score_gifts(responses)
+        st.write("TRACE D: scored ✅", base.primary, base.secondary, float(base.margin), base.needs_tiebreak)
+
         st.write("DEBUG:", base.primary, base.secondary, "margin=", float(base.margin), "needs_tiebreak=", base.needs_tiebreak) #temp debug
 
         # store for tie-break rerun
